@@ -20,6 +20,19 @@ Run every command from the project root (the folder that holds `output/`). The s
 1. If `$SKILL/resources/fonts/` lacks the four `.ttf` files, or `python -c "import playwright"` fails, run `bash $SKILL/scripts/setup.sh`.
 2. If `$SKILL/resources/logo.png` is missing, tell the user to drop in a transparent PNG (at least 200px wide). Do not generate a placeholder logo. The renderer will stop until the file is there.
 
+## Step 0b: pull the latest from GitHub (every run, before any new content)
+
+The user edits `post.json` status and other files on GitHub, so a stale checkout can overwrite their changes. Before writing anything, from the project root:
+
+```bash
+git status --short
+git pull --ff-only origin <current-branch>
+```
+
+- If `git status` shows uncommitted changes in files other than the one this run is about to write, stop and tell the user. Do not stash or discard them.
+- If `--ff-only` fails because the histories have diverged, stop and tell the user. Do not merge or rebase on your own.
+- Report the new commit hash, or say it was already up to date.
+
 ## Step 1: write the copy first
 
 Resolve the full copy for every slide and write `output/<topic-slug>/slides.json`. Do not stop for approval here: render straight away, then show the user the contact sheet next to the copy. They expect to edit either one.
@@ -79,6 +92,24 @@ Write `output/<slug>/caption.md`:
 - Roughly 60 to 120 words in total, in the vivektraces account's voice: plain, specific, no hype and no buzzwords. If the user has a voice guide, follow it instead.
 - A blank line, then 8 to 15 hashtags, mixed reach (a few broad, most niche). No hashtag walls. No emoji anywhere.
 
+## Step 3b: commit and push
+
+After the caption is written and the contact sheet has been checked, commit and push the post. Run these from the project root:
+
+```bash
+git add output/<slug>/
+git commit -m "post: <slug>"
+git push origin <current-branch>
+```
+
+The commit message ends with the trailer `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
+
+- Stage only `output/<slug>/`. Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
+- Do not create `post.json`, and never set `"status": "Approved"`. The daily publish routine on `main` posts every Approved post whose date is due, so pushing one publishes it to Instagram without anyone watching. Approval is set by hand, in a separate step.
+- If `output/<slug>/post.json` already exists with status `Publishing` or `Posted`, stop before committing and tell the user. Don't overwrite a post that has gone out.
+- Push to the branch you are on. Today that is `main`, which the routine reads.
+- Report the commit hash and the push result. If the push fails, say so and leave the commit in place.
+
 ## Template rules (do not change without asking)
 
 - The look is a feature spread in an independent magazine, printed on dark stock. Do not turn it into a slide deck or a social template.
@@ -99,7 +130,7 @@ python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG 
 ```
 
 - A post is picked up only when its `output/<slug>/post.json` has `"status": "Approved"` and a `"scheduled"` date on or before today. Set this by hand. The script never approves anything.
-- Instagram fetches the slides from `IMAGE_BASE_URL/<slug>/NN.jpg`, so push `output/<slug>/` to the image host before you publish. The script doesn't push anything.
+- Instagram fetches the slides from `IMAGE_BASE_URL/<slug>/NN.jpg`. Step 3b's push makes these available from the GitHub Pages site. The script itself doesn't push anything.
 - Status is written to the local `post.json` (`Publishing`, then `Posted` with the permalink, or `Failed` with the error). A post that is `Posted` or `Failed` is never picked up again. To retry a failed one, set its status back to `Approved` by hand.
 - Required environment variables: `IG_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID`. Optional: `IMAGE_BASE_URL`.
 
@@ -107,4 +138,4 @@ python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG 
 
 - No API calls, no keys, no network at render time.
 - Do not place a placeholder logo or fake any asset the user has not supplied.
-- Do not commit or push anything. The `.gitignore` entry for `output/*/html/` is already in place.
+- Commit and push only `output/<slug>/`, as described in Step 3b. Never commit `html/`, and never push anything else. Never push a post marked Approved.
