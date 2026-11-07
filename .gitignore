@@ -1,5 +1,4 @@
 output/*/html/
-routine.txt
 .env
 .env.*
 publish.log

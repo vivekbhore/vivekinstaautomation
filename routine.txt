@@ -1,0 +1,38 @@
+Publish the next approved Instagram post from the content repo. This runs once a day, unattended, with no permission prompts and nobody watching. This run never writes to GitHub: no commits, no pushes, no branches, no status changes. Do exactly these steps and nothing else.
+
+Setup
+
+Environment variables (never hardcode, never print any token):
+- IG_ACCESS_TOKEN
+- IG_BUSINESS_ACCOUNT_ID
+
+Fixed values:
+- Repo: https://github.com/vivekbhore/vivekinstaautomation, branch main. Clone it fresh at the start of every run, read-only. The repo is public, so no GitHub token is needed.
+- IMAGE_BASE_URL: https://vivekbhore.github.io/vivekinstaautomation/output
+
+Each post is a folder output/<slug>/ in the repo containing:
+- 01.jpg, 02.jpg, ... the slides in order: 2 to 10 files, 2160x2700 JPEG
+- caption.md: the full caption, hashtags included
+- post.json: {"status": "Approved", "scheduled": "YYYY-MM-DD"}. A person sets status to "Approved" by hand on GitHub. This run never edits post.json.
+
+Status values: Scheduled, Approved. Only "Approved" is picked up.
+
+1. Clone the repo. List output/*/post.json. Keep those with status "Approved" and scheduled on or before today's date (UTC). Sort by scheduled date ascending, then folder name.
+2. Take the first one only. One post per run, never more. If nothing is Approved and due, exit quietly. That is a successful run.
+3. Validate the folder: 2 to 10 slide files named NN.jpg in unbroken sequence from 01, and caption.md non-empty and at most 2200 characters. If invalid, stop and report the folder and the reason. Do not publish it.
+4. Duplicate check: GET /{IG_BUSINESS_ACCOUNT_ID}/media?fields=caption,permalink,timestamp&limit=50. If any existing post's caption exactly matches the contents of caption.md, stop and report that post's permalink as already published. Do not publish it again.
+5. Check the slide URLs: IMAGE_BASE_URL/<slug>/NN.jpg for every slide. Each must return 200 with an image/jpeg content type. GitHub Pages can take a few minutes to publish new files, so if a URL returns 404, re-check every 30 seconds for up to 10 minutes. If any URL still fails after that, stop and report it.
+6. For each image in order, POST /{IG_BUSINESS_ACCOUNT_ID}/media with image_url set to that URL and is_carousel_item=true. Fire these one after another with no polling in between, and record each child container ID. Any failure: stop and report. Do not delete containers already created.
+7. Poll each child's status_code until it reports FINISHED, with a 5-second interval and a 2-minute limit per child. ERROR, EXPIRED or timeout: stop and report.
+8. POST /{IG_BUSINESS_ACCOUNT_ID}/media with media_type=CAROUSEL, children set to the comma-separated child IDs, and caption set to the contents of caption.md. Record the carousel container ID.
+9. Poll the carousel container's status_code until FINISHED, using the same interval and limit as step 7. Any failure: stop and report.
+10. POST /{IG_BUSINESS_ACCOUNT_ID}/media_publish with creation_id set to the carousel container ID. Record the returned media ID.
+11. GET /{media-id}?fields=permalink. Report the media ID and permalink. If this lookup fails, report the media ID and the error. The post is already live, so never retry it.
+
+Report: for each run, print the folder slug, the outcome (published, skipped as duplicate, nothing due, or stopped with the reason), and the media ID and permalink if published. A person then sets status to "Posted" on GitHub, or leaves it "Approved" to stop a repeat, as they choose.
+
+Other rules
+- Never post twice. The duplicate check in step 4 must run before every publish. Only folders with status "Approved" are picked up.
+- Never retry a failed publish blindly. A stopped run is reported, and a person decides whether to run again.
+- Never write IG_ACCESS_TOKEN into a file or a log line. Strip access_token from any URL before logging it.
+- Do not modify, commit, or push anything. Do not modify slide images or caption.md.
