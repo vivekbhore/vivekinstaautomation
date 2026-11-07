@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>vivektraces · slide {{ "%02d" % slide.index }} of {{ "%02d" % slide.total }}</title>
+<style>
+/* Fonts: local files only, injected as absolute file:// URIs by render_carousel.py */
+@font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; font-display: block;
+  src: url("{{ fonts.instrument_regular }}") format("truetype"); }
+@font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; font-display: block;
+  src: url("{{ fonts.instrument_italic }}") format("truetype"); }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 200 800; font-display: block;
+  src: url("{{ fonts.manrope }}") format("truetype"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: block;
+  src: url("{{ fonts.jetbrains_mono }}") format("truetype"); }
+
+/* Tokens: change colours here and nowhere else */
+:root {
+  --paper: #0B0B0B;
+  --ink: #F2F0EC;
+  --ink-muted: rgba(242, 240, 236, 0.58);
+  --ink-faint: rgba(242, 240, 236, 0.16);
+  --accent: #E8622C;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--paper); }
+
+/* Canvas: luminance lift at the top, settling to paper by 60% of the height */
+.slide {
+  position: relative; width: 1080px; height: 1350px; overflow: hidden;
+  background: linear-gradient(180deg, #121212 0%, var(--paper) 60%, var(--paper) 100%);
+}
+
+/* Grain: the only texture. feTurbulence at 6% opacity, overlay blend */
+.grain {
+  position: absolute; left: 0; top: 0; width: 1080px; height: 1350px;
+  opacity: 0.06; mix-blend-mode: overlay; pointer-events: none;
+}
+
+/* Furniture: identical on every slide, absolute pixels */
+.logo {
+  position: absolute; left: 84px; top: 96px; height: 28px; width: {{ logo_w }}px;
+  background-color: var(--ink);
+  -webkit-mask-image: url("{{ logo_uri }}"); mask-image: url("{{ logo_uri }}");
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+  -webkit-mask-position: left center; mask-position: left center;
+  -webkit-mask-size: contain; mask-size: contain;
+}
+.folio {
+  position: absolute; right: 84px; top: 104px; height: 12px; white-space: nowrap;
+  font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 12px; line-height: 12px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-faint);
+  margin-right: -0.22em; /* cancel trailing tracking so the figures sit on the margin */
+}
+.rule-foot { position: absolute; left: 0; top: 1293px; width: 1080px; height: 1px; background: var(--ink-faint); }
+.footer {
+  position: absolute; left: 84px; top: 1313px; height: 12px; white-space: nowrap;
+  font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 12px; line-height: 12px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-muted);
+}
+
+/* Type */
+.h {
+  margin: 0; font-family: "Instrument Serif", serif; font-weight: 400; font-style: normal;
+  font-size: 88px; line-height: 0.92; letter-spacing: -0.02em; color: var(--ink);
+  text-wrap: balance;
+}
+.h .accent { font-style: italic; color: var(--accent); }
+.body p {
+  margin: 0 0 10px; max-width: 620px;
+  font-family: "Manrope", sans-serif; font-weight: 400; font-size: 22px; line-height: 1.45;
+  color: var(--ink-muted); text-wrap: pretty;
+}
+.body p:last-child { margin-bottom: 0; }
+.endmark {
+  display: inline-block; width: 14px; height: 14px; margin-left: 14px;
+  background-color: var(--accent); vertical-align: baseline;
+}
+
+/* Cover: headline alone, lower two thirds, bottom left on the footer hairline */
+.cover .h { position: absolute; left: 84px; bottom: 81px; width: 912px; font-size: 136px; }
+
+/* Layout A: heading top left under the logo line, body bottom left on the hairline */
+.layout-a .h { position: absolute; left: 84px; top: 180px; width: 756px; }
+.layout-a .body { position: absolute; left: 84px; bottom: 81px; width: 620px; }
+
+/* Layout B and closing: one block at the optical centre of the left margin */
+.stack {
+  position: absolute; left: 84px; right: 84px; top: 0; bottom: 0;
+  display: flex; flex-direction: column; justify-content: center; padding-bottom: 96px;
+}
+.stack .h { width: 756px; }
+.stack .rule { width: 96px; height: 1px; margin-bottom: 40px; background-color: var(--ink-faint); }
+.stack .rule.accent { background-color: var(--accent); }
+.stack .body { margin-top: 40px; width: 620px; }
+.closing .h { font-size: 96px; }
+.closing .body { margin-top: 40px; width: 620px; }
+</style>
+</head>
+<body>
+<div class="slide {{ slide.role }}{% if slide.role == 'body' %} layout-{{ slide.layout | lower }}{% endif %}"
+     data-role="{{ slide.role }}" data-index="{{ slide.index }}">
+
+  {# ---------- content ---------- #}
+  {% if slide.role == 'cover' %}
+  <div class="h" data-fit="headline" data-id="headline" data-max="136" data-min="116" data-lines="4">{{ slide.headline_html }}</div>
+
+  {% elif slide.role == 'body' and slide.layout == 'A' %}
+  <div class="h" data-fit="headline" data-id="heading" data-max="88" data-min="76" data-lines="3">{{ slide.heading_html }}</div>
+  <div class="body" data-fit="body" data-id="body">
+    {% for line in slide.body_html %}<p>{{ line }}</p>{% endfor %}
+  </div>
+
+  {% elif slide.role == 'body' %}
+  <div class="stack">
+    <div class="rule{% if slide.rule_accent %} accent{% endif %}"></div>
+    <div class="h" data-fit="headline" data-id="heading" data-max="88" data-min="76" data-lines="3">{{ slide.heading_html }}</div>
+    <div class="body" data-fit="body" data-id="body">
+      {% for line in slide.body_html %}<p>{{ line }}</p>{% endfor %}
+    </div>
+  </div>
+
+  {% else %}
+  <div class="stack">
+    <div class="h" data-fit="headline" data-id="headline" data-max="96" data-min="84" data-lines="3">{{ slide.headline_html }}<span class="endmark"></span></div>
+    <div class="body" data-fit="body" data-id="cta"><p>{{ slide.cta_html }}</p></div>
+  </div>
+  {% endif %}
+
+  {# ---------- furniture (identical on every slide) ---------- #}
+  <div class="logo" data-furniture="logo"></div>
+  <div class="folio" data-furniture="folio">{{ "%02d" % slide.index }} / {{ "%02d" % slide.total }}</div>
+  <div class="rule-foot" data-furniture="rule"></div>
+  <div class="footer" data-furniture="footer">vivektraces</div>
+
+  <svg class="grain" xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" aria-hidden="true">
+    <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
+    <rect width="1080" height="1350" filter="url(#grain)"/>
+  </svg>
+</div>
+
+<script>
+// Fit routine. Called by render_carousel.py after document.fonts is ready.
+// Headlines shrink in 2px steps from data-max down to data-min, and no further.
+// Body text never shrinks: each body line must measure as a single line.
+window.__fit = function () {
+  const slide = document.querySelector('.slide');
+  const out = { blocks: [], problems: [] };
+  const lh = el => parseFloat(getComputedStyle(el).lineHeight);
+  const lineCount = el => Math.round(el.getBoundingClientRect().height / lh(el));
+
+  document.querySelectorAll('[data-fit="headline"]').forEach(el => {
+    const max = +el.dataset.max, min = +el.dataset.min, limit = +el.dataset.lines;
+    let size = max;
+    el.style.fontSize = size + 'px';
+    let n = lineCount(el);
+    while (n > limit && size > min) {
+      size = Math.max(min, size - 2);
+      el.style.fontSize = size + 'px';
+      n = lineCount(el);
+    }
+    out.blocks.push({ id: el.dataset.id, size, lines: n, limit });
+    if (n > limit) out.problems.push(`${el.dataset.id}: ${n} lines at ${size}px, limit is ${limit} (copy too long)`);
+  });
+
+  document.querySelectorAll('[data-fit="body"]').forEach(block => {
+    block.querySelectorAll('p').forEach((p, i) => {
+      const n = lineCount(p);
+      out.blocks.push({ id: `${block.dataset.id} line ${i + 1}`, size: 22, lines: n, limit: 1 });
+      if (n !== 1) out.problems.push(`${block.dataset.id} line ${i + 1}: wraps to ${n} lines at 22px (copy too long for one line)`);
+    });
+  });
+
+  const r = el => el.getBoundingClientRect();
+  const headline = slide.querySelector('[data-id="headline"]');
+  const heading = slide.querySelector('[data-id="heading"]');
+  const body = slide.querySelector('.layout-a .body');
+  if (slide.dataset.role === 'cover' && headline && r(headline).top < 1350 / 3)
+    out.problems.push('cover: headline starts above the lower two thirds of the page');
+  if (heading && body && r(heading).bottom > r(body).top - 24)
+    out.problems.push('heading and body collide (less than one gutter apart)');
+
+  // Nothing may leave the margins or cross the footer hairline.
+  slide.querySelectorAll('[data-fit]').forEach(el => {
+    const b = r(el);
+    if (b.left < 83 || b.right > 997 || b.top < 95 || b.bottom > 1294)
+      out.problems.push(`${el.dataset.id}: outside margins (${Math.round(b.left)},${Math.round(b.top)} to ${Math.round(b.right)},${Math.round(b.bottom)})`);
+  });
+  return out;
+};
+
+// Furniture boxes, for the drift check. Rounded to whole pixels.
+window.__rects = function () {
+  const q = sel => {
+    const b = document.querySelector(sel).getBoundingClientRect();
+    return [b.left, b.top, b.width, b.height].map(v => Math.round(v));
+  };
+  return { logo: q('[data-furniture="logo"]'), folio: q('[data-furniture="folio"]'),
+           rule: q('[data-furniture="rule"]'), footer: q('[data-furniture="footer"]') };
+};
+</script>
+</body>
+</html>
