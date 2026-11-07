@@ -55,7 +55,7 @@ Schema (flat, nothing else allowed):
 - `slug`: lowercase words joined by hyphens. It must match the folder name.
 - **Slide count** is 3 to 7, chosen by the content. Do not pad to hit a number.
 - **Cover** (slide 1): one bold hook headline. No body text, no subtitle, nothing else.
-- **Middle slides**: each carries exactly one idea, with a short `heading` and `body` of at most two strings. Each string must fit on one line at body size, so keep it to roughly 45 characters. Never a paragraph. If an idea needs three lines, split it into two slides or cut it.
+- **Middle slides**: each carries exactly one idea, with a short `heading` and `body` of at most two strings. Each string must fit on one line at body size (30px), so keep it to roughly 45 characters. Never a paragraph. If an idea needs three lines, split it into two slides or cut it.
 - **Closing** (last slide): a closing line and a soft call to action. Soft means an invitation, not a pitch. No "DM me", no "link in bio" unless the user asks for it.
 - **Accent markup**: wrap one word or short phrase in asterisks in a headline or heading to mark it as the slide's accent (rendered as italic in the accent colour). At most one per slide. The renderer refuses a slide with two.
 - **Layout** (middle slides only): optional `"A"` or `"B"`. Without it, odd body slides take A and even take B.
@@ -73,7 +73,7 @@ The script:
 2. Checks the logo: transparent PNG, at least 200px wide. It logs the result once.
 3. Renders each slide from `template/slide.html` with Jinja2 into `html/NN.html`, with absolute `file://` paths for fonts and logo. Every `http`/`https` request is blocked. Any attempt stops the run.
 4. Waits for `document.fonts.ready` and confirms all four faces are `loaded`.
-5. Fit check. Headlines shrink in 2px steps: cover 136 → 116, headings 88 → 76, closing 96 → 84. Body text never shrinks. Line limits are 4 for the cover, 3 for headings and the closing, and 1 per body string. A block that still overflows stops the run and names the slide and block. Fix the copy, not the type.
+5. Fit check. Headlines shrink in 2px steps: cover 164 → 140, headings 112 → 96, closing 120 → 104. Body text is 30px and never shrinks. Line limits are 4 for the cover, 3 for headings and the closing, and 1 per body string. A block that still overflows stops the run and names the slide and block. Fix the copy, not the type.
 6. Screenshots at 2x as JPEG quality 92, clipped to the viewport.
 7. Drift check after each slide: the logo, folio, footer hairline and footer boxes must match slide 01 to the pixel, or the run stops.
 8. Builds `contact-sheet.jpg`.
@@ -104,13 +104,13 @@ git push origin <current-branch>
 
 The commit message ends with the trailer `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
 
-- `post.json` is always written in this step, with exactly this content and the date the user gave for the post:
+- `post.json` is always written in this step, with exactly this content:
 
   ```json
   { "status": "Scheduled", "scheduled": "YYYY-MM-DD" }
   ```
 
-- If the user has not given a date, ask for one before committing. Do not guess.
+- `scheduled` is always the same day as the push: today's date by the machine's clock at the moment of pushing. Compute it when you write the file, not from the user's words or an earlier date, and do not ask the user for a date. Example: `date +%F` in Git Bash prints it.
 - Never set `"status": "Approved"`. Only the user does that, by hand on GitHub. The publish routine ignores anything that is not Approved.
 - Stage only `output/<slug>/`. Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
 - If `output/<slug>/post.json` already exists with status `Approved`, `Publishing`, or `Posted`, stop before committing and tell the user. Don't overwrite a post that is queued or has gone out.
@@ -120,10 +120,13 @@ The commit message ends with the trailer `Co-Authored-By: Claude Haiku 5.5 <nore
 ## Template rules (do not change without asking)
 
 - The look is a feature spread in an independent magazine, printed on dark stock. Do not turn it into a slide deck or a social template.
-- Tokens live in `:root` in `template/slide.html`: `--paper #0B0B0B`, `--ink #F2F0EC`, `--ink-muted` (58%), `--ink-faint` (16%), `--accent #E8622C`.
+- Tokens live in `:root` in `template/slide.html`: `--paper #0B0B0B`, `--ink #F2F0EC`, `--ink-body` (86%), `--ink-muted` (66%), `--ink-faint` (22%), `--accent #E8622C`.
+- Colour fields: each slide sits on a colour field from four tones (`--tone-magenta`, `--tone-teal`, `--tone-violet`, `--tone-blue`), rotated by slide index, plus a darkening scrim so the off-white type keeps contrast. The accent orange is deliberately not one of the tones, so the accent word always reads as the accent.
+- Motifs: each slide also carries one vector pattern, chosen by the same index as the tone: `m0` concentric rings, `m1` halftone dots, `m2` diagonal hatch, `m3` sweeping orbits. They are decorative only, drawn in the tone colours, and fade out toward the type. A motif never carries text, a box or an icon.
+- Layout: every slide is one block centred on the canvas. Body text is 30px and the headings are large, so the content reads at thumbnail size.
 - Fonts: Instrument Serif (regular and italic) for headlines; Manrope for body and CTA; JetBrains Mono for folio and footer. Do not swap families to suit a topic.
 - One accent per slide. The renderer counts them: an accent word, the hairline on a layout B slide with no accent word, or the end mark on the closing slide.
-- Forbidden: emoji, shadows, glows, gradients behind text, boxes, cards, rounded corners, icons, watermarks, animation, and any text besides the copy plus folio and footer.
+- Forbidden: emoji, drop shadows, glows around text, boxes, cards, rounded corners, icons, watermarks, animation, and any text besides the copy plus folio and footer. Colour fields are allowed behind the type (the blurred tone blobs and scrim in the template); they must stay soft, and never become a solid panel the text sits in.
 - The logo is a CSS mask filled with ink, so it renders in off-white with clean edges.
 
 ## Step 4: publish (manual, on your command)

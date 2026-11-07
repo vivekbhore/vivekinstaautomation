@@ -37,7 +37,7 @@ FONT_FILES = {
 REQUIRED_FACES = [
     '400 88px "Instrument Serif"',
     'italic 400 88px "Instrument Serif"',
-    '400 22px "Manrope"',
+    '500 30px "Manrope"',
     '500 12px "JetBrains Mono"',
 ]
 W, H = 1080, 1350
