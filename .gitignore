@@ -3,3 +3,4 @@ routine.txt
 .env
 .env.*
 publish.log
+__pycache__/

@@ -94,7 +94,7 @@ Write `output/<slug>/caption.md`:
 
 ## Step 3b: commit and push
 
-After the caption is written and the contact sheet has been checked, commit and push the post. Run these from the project root:
+After the caption is written and the contact sheet has been checked, write `output/<slug>/post.json` and push the post. Run these from the project root:
 
 ```bash
 git add output/<slug>/
@@ -104,9 +104,16 @@ git push origin <current-branch>
 
 The commit message ends with the trailer `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
 
+- `post.json` is always written in this step, with exactly this content and the date the user gave for the post:
+
+  ```json
+  { "status": "Scheduled", "scheduled": "YYYY-MM-DD" }
+  ```
+
+- If the user has not given a date, ask for one before committing. Do not guess.
+- Never set `"status": "Approved"`. Only the user does that, by hand on GitHub. The publish routine ignores anything that is not Approved.
 - Stage only `output/<slug>/`. Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
-- Do not create `post.json`, and never set `"status": "Approved"`. The daily publish routine on `main` posts every Approved post whose date is due, so pushing one publishes it to Instagram without anyone watching. Approval is set by hand, in a separate step.
-- If `output/<slug>/post.json` already exists with status `Publishing` or `Posted`, stop before committing and tell the user. Don't overwrite a post that has gone out.
+- If `output/<slug>/post.json` already exists with status `Approved`, `Publishing`, or `Posted`, stop before committing and tell the user. Don't overwrite a post that is queued or has gone out.
 - Push to the branch you are on. Today that is `main`, which the routine reads.
 - Report the commit hash and the push result. If the push fails, say so and leave the commit in place.
 
@@ -129,7 +136,7 @@ python .claude/skills/infographic-generator/scripts/publish_post.py             
 python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG # publish one specific post
 ```
 
-- A post is picked up only when its `output/<slug>/post.json` has `"status": "Approved"` and a `"scheduled"` date on or before today. Set this by hand. The script never approves anything.
+- Lifecycle: the skill pushes `post.json` as `Scheduled`. The user changes it to `Approved` by hand on GitHub. The publish routine then picks up `Approved` posts whose `"scheduled"` date is on or before today. The script never approves anything.
 - Instagram fetches the slides from `IMAGE_BASE_URL/<slug>/NN.jpg`. Step 3b's push makes these available from the GitHub Pages site. The script itself doesn't push anything.
 - Status is written to the local `post.json` (`Publishing`, then `Posted` with the permalink, or `Failed` with the error). A post that is `Posted` or `Failed` is never picked up again. To retry a failed one, set its status back to `Approved` by hand.
 - Required environment variables: `IG_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID`. Optional: `IMAGE_BASE_URL`.
@@ -138,4 +145,4 @@ python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG 
 
 - No API calls, no keys, no network at render time.
 - Do not place a placeholder logo or fake any asset the user has not supplied.
-- Commit and push only `output/<slug>/`, as described in Step 3b. Never commit `html/`, and never push anything else. Never push a post marked Approved.
+- Commit and push only `output/<slug>/`, as described in Step 3b. Never commit `html/`, and never push anything else. Never push a post marked Approved. The skill only ever pushes `Scheduled`.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish one approved carousel to Instagram. Run by hand, never on a schedule.
+"""Publish one approved carousel to Instagram. Run by the publish routine, or by hand.
 
     python publish_post.py                  publish the next Approved post that is due
     python publish_post.py --slug SLUG      publish one specific post (it must be Approved)
