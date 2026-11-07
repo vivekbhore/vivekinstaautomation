@@ -1,0 +1,13 @@
+{
+  "topic": "Prompt engineering explained: the main types, with examples",
+  "slug": "prompt-engineering-explained",
+  "slides": [
+    { "role": "cover", "headline": "Ask better. Get *better* answers." },
+    { "role": "body", "heading": "What prompt engineering *is*", "body": ["Writing instructions that steer an AI", "toward the output you actually want."] },
+    { "role": "body", "heading": "Zero-shot: just *ask*", "body": ["No examples. Only a clear instruction.", "Example: Summarize this in 3 bullets."], "layout": "B" },
+    { "role": "body", "heading": "Few-shot: show *examples*", "body": ["Give 2 or 3 examples of the pattern.", "Example: happy → positive, meh → neutral."] },
+    { "role": "body", "heading": "Chain of thought: *reasoning*", "body": ["Ask it to show its reasoning first.", "Example: Solve it step by step, then answer."], "layout": "B" },
+    { "role": "body", "heading": "Role and *context*", "body": ["Tell it who to be and who it's for.", "Example: Act as a nutrition coach."] },
+    { "role": "closing", "headline": "Start small. Refine every answer.", "cta": "Which technique do you use most?" }
+  ]
+}
