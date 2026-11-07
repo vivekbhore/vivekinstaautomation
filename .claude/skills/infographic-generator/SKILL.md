@@ -88,6 +88,21 @@ Write `output/<slug>/caption.md`:
 - Forbidden: emoji, shadows, glows, gradients behind text, boxes, cards, rounded corners, icons, watermarks, animation, and any text besides the copy plus folio and footer.
 - The logo is a CSS mask filled with ink, so it renders in off-white with clean edges.
 
+## Step 4: publish (manual, on your command)
+
+Publishing is never automatic. Run it by hand when you want a post to go out:
+
+```bash
+python .claude/skills/infographic-generator/scripts/publish_post.py --dry-run   # check the plan, no API calls
+python .claude/skills/infographic-generator/scripts/publish_post.py             # publish the next due Approved post
+python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG # publish one specific post
+```
+
+- A post is picked up only when its `output/<slug>/post.json` has `"status": "Approved"` and a `"scheduled"` date on or before today. Set this by hand. The script never approves anything.
+- Instagram fetches the slides from `IMAGE_BASE_URL/<slug>/NN.jpg`, so push `output/<slug>/` to the image host before you publish. The script doesn't push anything.
+- Status is written to the local `post.json` (`Publishing`, then `Posted` with the permalink, or `Failed` with the error). A post that is `Posted` or `Failed` is never picked up again. To retry a failed one, set its status back to `Approved` by hand.
+- Required environment variables: `IG_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID`. Optional: `IMAGE_BASE_URL`.
+
 ## Things that must not happen
 
 - No API calls, no keys, no network at render time.

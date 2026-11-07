@@ -16,4 +16,11 @@ Render a set after writing `output/<slug>/slides.json`:
 python .claude/skills/infographic-generator/scripts/render_carousel.py <slug>
 ```
 
+Publish one approved post by hand (set `IG_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID` first):
+
+```bash
+python .claude/skills/infographic-generator/scripts/publish_post.py --dry-run
+python .claude/skills/infographic-generator/scripts/publish_post.py
+```
+
 Full instructions are in `SKILL.md`.
