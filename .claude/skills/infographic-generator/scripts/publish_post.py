@@ -34,6 +34,7 @@ SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 MAX_CAPTION = 2200
 URL_WAIT_S, URL_STEP_S = 600, 30          # slide URLs: re-check for up to 10 minutes
 POLL_INTERVAL_S, POLL_LIMIT_S = 5, 120    # container status: 2 minutes per container
+REEL_POLL_LIMIT_S = 600                   # Reels take longer to process: up to 10 minutes
 
 
 class Stop(Exception):
@@ -106,23 +107,23 @@ def validate(folder: Path) -> tuple[list[str], str]:
 
 # ----------------------------------------------------------------- network
 
-def url_is_live(url: str) -> bool:
+def url_is_live(url: str, content_type: str = "image/jpeg") -> bool:
     req = urllib.request.Request(url, headers={"Range": "bytes=0-0"})
     try:
         with urllib.request.urlopen(req, timeout=20) as r:
-            return r.status in (200, 206) and r.headers.get("Content-Type", "").startswith("image/jpeg")
+            return r.status in (200, 206) and r.headers.get("Content-Type", "").startswith(content_type)
     except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError):
         return False
 
 
-def wait_for_urls(urls: list[str], slug: str) -> None:
+def wait_for_urls(urls: list[str], slug: str, content_type: str = "image/jpeg") -> None:
     deadline = time.time() + URL_WAIT_S
     while True:
-        missing = [u for u in urls if not url_is_live(u)]
+        missing = [u for u in urls if not url_is_live(u, content_type)]
         if not missing:
             return
         if time.time() >= deadline:
-            raise Stop(f"{slug}: slide URL not live after 10 minutes: {missing[0]}. "
+            raise Stop(f"{slug}: file not live after 10 minutes: {missing[0]}. "
                        "Have you pushed output/" + slug + " to the image host?")
         say(f"waiting for {len(missing)} slide URL(s) to go live...")
         time.sleep(URL_STEP_S)
@@ -149,8 +150,8 @@ def graph(method: str, path: str, token: str, params: dict | None = None) -> dic
     return json.loads(body)
 
 
-def wait_finished(container_id: str, token: str, label: str) -> None:
-    for _ in range(POLL_LIMIT_S // POLL_INTERVAL_S):
+def wait_finished(container_id: str, token: str, label: str, limit_s: int = POLL_LIMIT_S) -> None:
+    for _ in range(limit_s // POLL_INTERVAL_S):
         info = graph("GET", container_id, token, {"fields": "status_code,status"})
         code = info.get("status_code")
         if code == "FINISHED":
@@ -158,12 +159,72 @@ def wait_finished(container_id: str, token: str, label: str) -> None:
         if code in ("ERROR", "EXPIRED"):
             raise Stop(f"{label} container {code}: {info.get('status', '')}")
         time.sleep(POLL_INTERVAL_S)
-    raise Stop(f"{label} container not FINISHED after 2 minutes")
+    raise Stop(f"{label} container not FINISHED after {limit_s // 60} minutes")
 
 
 # ---------------------------------------------------------------- publish
 
+def validate_reel(folder: Path) -> tuple[str, str]:
+    video = folder / "reel.mp4"
+    if not video.exists():
+        raise Stop(f"{folder.name}: reel.mp4 is missing. Build it with scripts/render_reel.py first.")
+    if video.stat().st_size > 1024 ** 3:
+        raise Stop(f"{folder.name}: reel.mp4 is over 1 GB")
+    cap = folder / "caption.md"
+    if not cap.exists():
+        raise Stop(f"{folder.name}: caption.md is missing")
+    caption = cap.read_text(encoding="utf-8").strip()
+    if not caption:
+        raise Stop(f"{folder.name}: caption.md is empty")
+    if len(caption) > MAX_CAPTION:
+        raise Stop(f"{folder.name}: caption is {len(caption)} characters; the limit is {MAX_CAPTION}")
+    return "reel.mp4", caption
+
+
+def publish_reel(folder: Path, token: str, account: str, base: str, dry_run: bool) -> None:
+    video, caption = validate_reel(folder)
+    slug = folder.name
+    url = f"{base.rstrip('/')}/{slug}/{video}"
+    say(f"reel: {slug}, caption {len(caption)} characters")
+    if dry_run:
+        say(f"  would check {url}")
+        say("dry run: no API calls, no changes made")
+        return
+
+    post = load_post(folder) or {}
+    post["status"] = "Publishing"
+    save_post(folder, post)
+    try:
+        wait_for_urls([url], slug, content_type="video/mp4")
+        container = graph("POST", f"{account}/media", token,
+                          {"media_type": "REELS", "video_url": url, "caption": caption,
+                           "share_to_feed": "true"})["id"]
+        wait_finished(container, token, "reel", limit_s=REEL_POLL_LIMIT_S)
+        media_id = graph("POST", f"{account}/media_publish", token, {"creation_id": container})["id"]
+    except Stop as e:
+        post = load_post(folder) or {}
+        post.update(status="Failed", error=str(e)[:500])
+        save_post(folder, post)
+        raise
+
+    post = load_post(folder) or {}
+    post["media_id"] = media_id
+    save_post(folder, post)
+    try:
+        link = graph("GET", media_id, token, {"fields": "permalink"})["permalink"]
+        post.update(status="Posted", permalink=link,
+                    posted_at=datetime.now(timezone.utc).isoformat(timespec="seconds"))
+        post.pop("error", None)
+        say(f"posted: {link}")
+    except Stop as e:
+        post.update(status="Posted", error=f"permalink lookup failed: {e}"[:500])
+        say(f"posted (media id {media_id}), but the permalink lookup failed; see post.json")
+    save_post(folder, post)
+
+
 def publish(folder: Path, token: str, account: str, base: str, dry_run: bool) -> None:
+    if (load_post(folder) or {}).get("format") == "reel":
+        return publish_reel(folder, token, account, base, dry_run)
     slides, caption = validate(folder)
     slug = folder.name
     urls = [f"{base.rstrip('/')}/{slug}/{s}" for s in slides]

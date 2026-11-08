@@ -1,0 +1,308 @@
+#!/usr/bin/env python3
+"""Build a 9:16 Instagram Reel (MP4) from output/<slug>/slides.json, with a spoken narration.
+
+    python scripts/render_reel.py <slug> [--voice "Microsoft Mark"] [--rate 0] [--workers 4]
+
+Narration: each slide is read aloud by the Windows voice (scripts/speak.ps1). The text is the
+slide's headline or heading, then its body (or subtitle, or call to action). A slide can set its
+own spoken text with a "narration" string in slides.json. No network, no keys.
+
+Timing follows the narration:
+- The text is written on over 90% of the spoken length, so each line lands as it is said.
+- The slide lasts the spoken length plus 0.8 s, with a 4 s floor. There is no upper limit on length.
+- Motion: the finished slide zooms in slowly, fades in over 0.6 s, and rises 60 px into place.
+- Slides cross-fade over 0.5 s. Each slide's voice starts with its own slide.
+
+Slides are rendered in parallel: each worker process runs its own headless Chromium, so several
+slides are screenshotted at once.
+
+Output: output/<slug>/reel.mp4 (H.264, AAC, 1080x1920, 30 fps). Frames and speech files are kept in
+output/<slug>/html/reel/ (gitignored). Needs ffmpeg on PATH, or the winget install.
+"""
+from __future__ import annotations
+
+import argparse
+import glob
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+sys.path.insert(0, str(SCRIPT_DIR))
+import render_carousel as rc  # noqa: E402  (shared copy checks, fit routine and fonts)
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape  # noqa: E402
+from playwright.sync_api import sync_playwright  # noqa: E402
+
+PROJECT_ROOT = SCRIPT_DIR.parents[3]          # scripts -> skill -> skills -> .claude -> project
+OUTPUT_ROOT = PROJECT_ROOT / "output"
+FPS = 30
+W, H = 1080, 1920
+WRITE_SHARE = 0.9   # the text is finished at 90% of the spoken length
+TAIL = 0.8          # seconds a finished slide stays after the voice stops
+MIN_SEC = 4.0       # floor only: a slide is never shorter than 4 s. There is no upper limit on length.
+DEFAULT_RATE = 0    # normal speaking speed (Kokoro speed 1.0)
+FADE = 0.5          # cross-fade between slides
+RISE = 0.8          # seconds for the slide to rise into place
+PAPER = "0x0B0B0B"
+DEFAULT_VOICE = "Microsoft Mark"
+DEFAULT_WORKERS = min(4, os.cpu_count() or 2)
+Stop = rc.Stop
+
+
+def find_tool(name: str) -> str:
+    found = shutil.which(name)
+    if found:
+        return found
+    pattern = os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft", "WinGet", "Packages",
+                           "Gyan.FFmpeg*", "*", "bin", f"{name}.exe")
+    hits = sorted(glob.glob(pattern))
+    if hits:
+        return hits[-1]
+    raise Stop(f"{name} not found. Install ffmpeg (winget install Gyan.FFmpeg) or add it to PATH.")
+
+
+# ------------------------------------------------------------------ narration
+
+def plain(text: str) -> str:
+    return re.sub(r"\s+", " ", text.replace("*", "")).strip()
+
+
+def narration_for(slide: dict) -> str:
+    """The explanation spoken over a slide: the slide's 'narration' field, written as a spoken explainer.
+
+    The slide text is not read out. Every slide must carry its own narration, so the voice explains
+    the idea instead of reading the words on screen.
+    """
+    text = slide.get("narration")
+    if not isinstance(text, str) or not text.strip():
+        return ""
+    return plain(text)
+
+
+def speak(text: str, wav: Path, engine: str, voice: str, rate: int) -> None:
+    txt = wav.with_suffix(".txt")
+    txt.write_text(text, encoding="utf-8")
+    if engine == "kokoro":
+        r = subprocess.run([sys.executable, str(SCRIPT_DIR / "speak_kokoro.py"), "--text-file", str(txt),
+                            "--out", str(wav), "--voice", voice, "--speed", str(1.0 + rate / 20)],
+                           capture_output=True, text=True)
+        if r.returncode != 0 or not wav.exists():
+            raise Stop(f"Kokoro speech failed for {wav.name}: {r.stdout[-300:]} {r.stderr[-300:]}")
+        return
+    script = SCRIPT_DIR / "speak.ps1"
+    r = subprocess.run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script),
+                        "-TextFile", str(txt), "-OutFile", str(wav), "-Voice", voice, "-Rate", str(rate)],
+                       capture_output=True, text=True)
+    if r.returncode != 0 or not wav.exists():
+        raise Stop(f"speech failed for {wav.name}: {r.stderr[-400:] or r.stdout[-400:]}")
+
+
+def wav_seconds(wav: Path, ffprobe: str) -> float:
+    r = subprocess.run([ffprobe, "-v", "error", "-show_entries", "format=duration", "-of",
+                        "default=nw=1:nk=1", str(wav)], capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:
+        raise Stop(f"could not read the length of {wav.name}")
+
+
+# ------------------------------------------------------------------ frames
+
+def render_one_slide(job: tuple[str, int, float, float]) -> tuple[str, float]:
+    """Worker: screenshot every frame of one slide while its text is written on.
+
+    Runs in its own process with its own Chromium, so several slides render at once.
+    Returns (frame folder, seconds shown).
+    """
+    staging_post_s, n, write, seconds = job
+    staging_post = Path(staging_post_s)
+    copy = rc.load_copy(staging_post / "slides.json")
+    views, _ = rc.build_view(copy, staging_post)
+    view = views[n - 1]
+    fonts = rc.check_fonts()
+    logo_path = rc.DEFAULT_LOGO
+    aspect = rc.check_logo(logo_path)
+    logo_uri = logo_path.resolve().as_uri()
+    logo_w = round(rc.LOGO_HEIGHT_PX * aspect)
+    env = Environment(loader=FileSystemLoader(rc.TEMPLATE_DIR), autoescape=select_autoescape(["html"]))
+    tpl = env.get_template("slide.html")
+
+    blocked: list[str] = []
+    frames_dir = staging_post / "frames" / f"s{n:02d}"
+    frames_dir.mkdir(parents=True, exist_ok=True)
+    for old in frames_dir.glob("*.png"):
+        old.unlink()
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch(args=rc.CHROME_ARGS)
+        try:
+            context = browser.new_context(viewport={"width": W, "height": H}, device_scale_factor=1)
+
+            def guard(route):
+                url = route.request.url
+                if url.startswith(("http://", "https://")):
+                    blocked.append(url)
+                    return route.abort()
+                return route.continue_()
+
+            context.route("**/*", guard)
+            page = context.new_page()
+            html_text = tpl.render(slide=view, fonts=fonts, logo_uri=logo_uri, logo_w=logo_w, H=H)
+            html_path = staging_post / f"{n:02d}.html"
+            html_path.write_text(html_text, encoding="utf-8")
+            page.goto(html_path.resolve().as_uri(), wait_until="load")
+            rc.wait_for_fonts(page)
+            rc.wait_for_images(page, n)
+            if blocked:
+                raise Stop(f"slide {n:02d} tried to load from the network ({blocked[0]}).")
+            report = page.evaluate("window.__fit()")
+            if report["problems"]:
+                raise Stop(f"slide {n:02d}: " + "; ".join(report["problems"]))
+            page.evaluate("window.__split()")
+            for f in range(round(seconds * FPS)):
+                p = min(1.0, (f / FPS) / write)
+                page.evaluate(f"window.__reveal({p:.5f})")
+                page.screenshot(path=str(frames_dir / f"{f:04d}.png"), type="png")
+        finally:
+            browser.close()
+    return str(frames_dir), seconds
+
+
+def render_slides(staging_post: Path, timing: list[tuple[float, float]], workers: int) -> list[tuple[Path, float]]:
+    """Render all slides, several at a time. Results come back in slide order."""
+    copy = rc.load_copy(staging_post / "slides.json")
+    _, warnings = rc.build_view(copy, staging_post)
+    for w in warnings:
+        print(f"warning: {w}")
+    jobs = [(str(staging_post), n, write, seconds)
+            for n, (write, seconds) in enumerate(timing, 1)]
+    results: list[tuple[Path, float]] = []
+    with ProcessPoolExecutor(max_workers=workers) as pool:
+        for n, (frames, seconds) in enumerate(pool.map(render_one_slide, jobs), 1):
+            print(f"slide {n:02d}: rendered {seconds:.1f} s of frames")
+            results.append((Path(frames), seconds))
+    return results
+
+
+# ------------------------------------------------------------------ encode
+
+def encode(post_dir: Path, slides: list[tuple[Path, float]], wavs: list[Path], ffmpeg: str) -> Path:
+    n = len(slides)
+    cmd = [ffmpeg, "-y", "-hide_banner", "-loglevel", "error"]
+    for frames_dir, _ in slides:
+        cmd += ["-framerate", str(FPS), "-i", str(frames_dir / "%04d.png")]
+    for wav in wavs:
+        cmd += ["-i", str(wav)]
+
+    chains = []
+    durations = [s for _, s in slides]
+    for i, seconds in enumerate(durations):
+        chains.append(
+            f"[{i}:v]zoompan=z='min(zoom+0.00035,1.06)':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)'"
+            f":d=1:s={W}x{H}:fps={FPS},format=rgba,fade=t=in:st=0:d=0.6:alpha=1[s{i}_fg];"
+            f"color=c={PAPER}:s={W}x{H}:r={FPS}:d={seconds:.3f}[s{i}_bg];"
+            f"[s{i}_bg][s{i}_fg]overlay=0:'if(lt(t,{RISE}),60*(1-t/{RISE}),0)':eval=frame,"
+            f"format=yuv420p,setsar=1[s{i}]"
+        )
+    joined = "s0"
+    played = durations[0]
+    starts = [0.0]
+    for i in range(1, n):
+        out = f"x{i}" if i < n - 1 else "vout"
+        offset = round(played - FADE, 3)
+        starts.append(played - FADE)
+        chains.append(f"[{joined}][s{i}]xfade=transition=fade:duration={FADE}:offset={offset}[{out}]")
+        played += durations[i] - FADE
+        joined = out
+    total = played
+
+    # Each slide's voice starts when its slide starts, then all voices are mixed together.
+    voices = []
+    for i in range(n):
+        ms = int(round(starts[i] * 1000))
+        chains.append(f"[{n + i}:a]adelay={ms}:all=1,aformat=sample_fmts=fltp:sample_rates=44100:channel_layouts=stereo[v{i}]")
+        voices.append(f"[v{i}]")
+    chains.append(f"{''.join(voices)}amix=inputs={n}:duration=longest:normalize=0,"
+                  f"atrim=0:{total:.3f},afade=t=out:st={max(total - 1.5, 0):.3f}:d=1.5[aout]")
+
+    out_path = post_dir / "reel.mp4"
+    cmd += ["-filter_complex", ";".join(chains), "-map", "[vout]", "-map", "[aout]",
+            "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-pix_fmt", "yuv420p", "-r", str(FPS),
+            "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-t", f"{total:.3f}", str(out_path)]
+    r = subprocess.run(cmd, capture_output=True, text=True)
+    if r.returncode != 0:
+        raise Stop(f"ffmpeg failed:\n{r.stderr[-1200:]}")
+    return out_path
+
+
+# ------------------------------------------------------------------ build
+
+def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
+    if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", slug):
+        raise Stop(f"slug {slug!r} must be lowercase words joined by hyphens")
+    post_dir = OUTPUT_ROOT / slug
+    slides_json = post_dir / "slides.json"
+    if not slides_json.exists():
+        raise Stop(f"{slides_json} not found. Write the copy first.")
+    staging_post = post_dir / "html" / "reel" / slug
+    staging_post.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(slides_json, staging_post / "slides.json")
+    if (post_dir / "assets").exists():
+        shutil.copytree(post_dir / "assets", staging_post / "assets", dirs_exist_ok=True)
+
+    copy = json.loads(slides_json.read_text(encoding="utf-8"))
+    ffprobe = find_tool("ffprobe")
+    wavs, timing = [], []
+    missing = [n for n, slide in enumerate(copy["slides"], 1) if not narration_for(slide)]
+    if missing:
+        raise Stop("these slides have no \"narration\" in slides.json: "
+                   + ", ".join(f"{n:02d}" for n in missing)
+                   + ". Write a spoken explanation for each slide, then run again.")
+    for n, slide in enumerate(copy["slides"], 1):
+        text = narration_for(slide)
+        wav = staging_post / f"voice{n:02d}.wav"
+        speak(text, wav, engine, voice, rate)
+        narr = wav_seconds(wav, ffprobe)
+        write = max(1.0, narr * WRITE_SHARE)
+        seconds = max(MIN_SEC, narr + TAIL, write + 0.5)
+        wavs.append(wav)
+        timing.append((write, seconds))
+        print(f"slide {n:02d} voice: {narr:.1f} s")
+
+    slides = render_slides(staging_post, timing, workers)
+    return encode(post_dir, slides, wavs, find_tool("ffmpeg"))
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("slug")
+    ap.add_argument("--engine", choices=["kokoro", "windows"], default="kokoro",
+                    help="voice engine: kokoro (natural, local model in C:\\kokoro) or windows (built-in)")
+    ap.add_argument("--voice", default=None,
+                    help="voice name. Kokoro default af_heart (also am_michael, af_bella). Windows default Microsoft Mark")
+    ap.add_argument("--rate", type=int, default=DEFAULT_RATE,
+                    help=f"speaking rate, -10 (slow) to 10 (fast); default {DEFAULT_RATE} (normal)")
+    ap.add_argument("--workers", type=int, default=DEFAULT_WORKERS,
+                    help=f"slides rendered at the same time (default {DEFAULT_WORKERS})")
+    args = ap.parse_args()
+    voice = args.voice or ("af_heart" if args.engine == "kokoro" else DEFAULT_VOICE)
+    try:
+        out = build(args.slug, args.engine, voice, args.rate, max(1, args.workers))
+        probe = subprocess.run([find_tool("ffprobe"), "-v", "error", "-show_entries",
+                                "format=duration:stream=width,height", "-of", "json", str(out)],
+                               capture_output=True, text=True)
+        print(f"reel: {out}")
+        print(f"probe: {json.loads(probe.stdout or '{}')}")
+    except Stop as e:
+        print(f"STOP: {e}")
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

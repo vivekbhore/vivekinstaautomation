@@ -55,7 +55,7 @@ Schema (flat, nothing else allowed):
   "slug": "...",
   "slides": [
     { "role": "cover", "headline": "Your team is not slow. Your *handoffs* are.", "subtitle": ["Why work stalls between people, and how to see it."] },
-    { "role": "body", "heading": "...", "body": ["line one", "line two"], "figure": "assets/flow.svg" },
+    { "role": "body", "heading": "...", "body": ["line one", "line two"], "figure": "assets/flow.svg", "narration": "A spoken explanation of this idea, for the Reel's voice." },
     { "role": "body", "heading": "...", "body": ["one string is fine"], "layout": "B" },
     { "role": "closing", "headline": "...", "cta": "..." }
   ]
@@ -86,7 +86,7 @@ python .claude/skills/infographic-generator/scripts/render_carousel.py <topic-sl
 
 The script:
 
-1. Validates the copy: slide count, roles, body length, one accent per slide (it warns when a slide has none).
+1. Validates the copy: slide count, roles, body length, and at most one accent per slide. An accent is optional.
 2. Checks the logo: transparent PNG, at least 200px wide. It logs the result once.
 3. Renders each slide from `template/slide.html` with Jinja2 into `html/NN.html`, with absolute `file://` paths for fonts and logo. Every `http`/`https` request is blocked. Any attempt stops the run.
 4. Waits for `document.fonts.ready` and confirms all four faces are `loaded`.
@@ -101,6 +101,27 @@ Progress is printed per slide with the final headline size and line count.
 Other flags: `--scale 2` (default), `--slide N` (re-render one slide after a copy edit; it rebuilds the contact sheet from the existing JPGs), `--out-root DIR`, `--logo PATH`.
 
 After rendering, open `output/<slug>/contact-sheet.jpg` with the Read tool and check it: nothing clipped, one accent per slide, hierarchy readable at thumbnail size, furniture in the same place on every slide. If something is off, fix the copy or the template, re-render, and check again. Then show the user the contact sheet with the copy.
+
+## Step 2b: reel (only when the user asks for a Reel)
+
+A Reel is a 9:16 MP4 built from the same `slides.json`, with a spoken narration. Use it when the user asks for a Reel.
+
+```bash
+python .claude/skills/infographic-generator/scripts/render_reel.py <topic-slug> [--voice af_heart] [--rate 0]
+```
+
+- **Narration is an explainer, not a reading.** The voice does not read the words on screen. Every slide needs its own `"narration"` in `slides.json`: a spoken explanation of the idea, the way a teacher talks to a viewer. Its length is whatever the explanation needs: there is no limit on the number of sentences or on the length of the Reel. It defines the terms, gives one plain example or comparison, and says why it matters. The on-screen text supports the voice; it doesn't repeat it. The renderer stops and names any slide without a narration.
+  - Good: "A vector is just a list of numbers that describes something. Think of a product as a point on a map, where nearby points mean similar products."
+  - Not good: "Vector database. Everything becomes numbers. An embedding model reads a sentence." (That is the slide text read aloud.)
+  - Use plain words, short sentences, and "you" where it helps. Spell out acronyms the first time (for example "HNSW, a fast index for nearest matches").
+- **Voice.** Kokoro (`af_heart` by default; `--voice am_michael` for a male voice) reads the narration locally from `C:\kokoro`. No network and no keys. Windows voices are available with `--engine windows`.
+- **Timing follows the voice.** The text is written on over 90% of the spoken length, so each line lands as it is said. A slide lasts the spoken length plus 0.8 seconds, with a 4-second floor for very short narration. There is no upper limit on slide or Reel length.
+- **Speed.** The default speaking rate is normal (`--rate 0`). Only change it when the user asks for faster or slower speech.
+- **Motion.** Each finished slide zooms in slowly, fades in over 0.6 seconds, and rises 60 px into place. Slides cross-fade over 0.5 seconds.
+- **Layout.** Each slide is re-laid at 1080×1920. The skill never adds music.
+- Output: `output/<slug>/reel.mp4`. Frames are written to `output/<slug>/html/` (gitignored).
+- Needs ffmpeg on PATH, or installed through winget (`Gyan.FFmpeg`). Speech needs the Windows voices, which ship with Windows.
+- Post the Reel by setting `"format": "reel"` in `post.json` (Step 3b). The publish script then uploads `reel.mp4` as a Reel, not a carousel. The caption and the closing slide are the same as for a carousel.
 
 ## Step 3: caption
 
@@ -130,6 +151,7 @@ This is one commit and one push. It carries the new post and any `post.json` fil
   ```
 
 - `scheduled` is always the same day as the push: today's date by the machine's clock at the moment of pushing. Compute it when you write the file, not from the user's words or an earlier date, and do not ask the user for a date. Example: `date +%F` in Git Bash prints it.
+- For a Reel, add `"format": "reel"` to the same JSON: `{ "status": "Approved", "scheduled": "YYYY-MM-DD", "format": "reel" }`. Commit `output/<slug>/reel.mp4` with the post in the same commit.
 - The skill sets `"status": "Approved"` itself. Pushing it makes the post eligible for the publish routine on its `scheduled` date, with no further approval step. The user can still change the status on GitHub to stop it.
 - Stage only `output/<slug>/` and the `post.json` files Step 0c changed. Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
 - If `output/<slug>/post.json` already exists with status `Approved`, `Publishing`, or `Posted`, stop before committing and tell the user. Don't overwrite a post that is queued or has gone out.
@@ -151,7 +173,7 @@ This is one commit and one push. It carries the new post and any `post.json` fil
 - Layout: every slide is one block centred on the canvas. Body text is 30px and the headings are large, so the content reads at thumbnail size. A figure, when present, sits between the heading and the body in a fixed 912×400 frame.
 - Brand mark: the footer reads `vivektraces` in JetBrains Mono, 22px, weight 800, in full ink (`--ink`). It is the account name, so it stays in lowercase, and it is larger and whiter than the folio.
 - Fonts: Caveat (handwritten) for headlines, accent words and the closing headline, with a faint pencil edge filter; Manrope for body and CTA; JetBrains Mono for folio and footer. Caveat is the house headline style now: do not swap families to suit a topic.
-- One accent per slide. The renderer counts them: an accent word, the hairline on a layout B slide with no accent word, or the end mark on the closing slide.
+- At most one accent per slide. The renderer counts them: an accent word, the hairline on a layout B slide with no accent word, or the end mark on the closing slide. A slide may have none.
 - Forbidden: emoji, drop shadows, glows around text, boxes, cards, rounded corners, icons, watermarks, animation, and any text besides the copy plus folio and footer. The full-bleed solid base and the textures are allowed behind the type. A base is the whole slide, never a panel or box the text sits in.
 - The logo is a CSS mask filled with ink, so it renders in off-white with clean edges.
 

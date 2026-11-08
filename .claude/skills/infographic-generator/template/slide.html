@@ -42,7 +42,7 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 
 /* Canvas: dark paper, lifted at the top */
 .slide {
-  position: relative; width: 1080px; height: 1350px; overflow: hidden;
+  position: relative; width: 1080px; height: {{ H }}px; overflow: hidden;
   background: var(--base);
 }
 
@@ -62,17 +62,17 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 
 /* Motifs: one vector pattern per slide, chosen by tone index. Decorative only, no text.
    m0 rings, m1 halftone dots, m2 diagonal hatch, m3 orbits. Each fades out toward the text. */
-.motif { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; pointer-events: none; }
+.motif { position: absolute; left: 0; top: 0; width: 1080px; height: {{ H }}px; pointer-events: none; }
 .motif .m0, .motif .m1, .motif .m2, .motif .m3 { display: none; }
 /* Texture: one of tx1 to tx5 per slide (tx0 topographic is retired). Sits above the colour field, below the motif and the scrim. */
-.tex { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; pointer-events: none; }
+.tex { position: absolute; left: 0; top: 0; width: 1080px; height: {{ H }}px; pointer-events: none; }
 .tex .tk { display: none; }
 .tex-1 .tk1, .tex-2 .tk2, .tex-3 .tk3, .tex-4 .tk4, .tex-5 .tk5 { display: inline; }
 .tone-0 .m0, .tone-1 .m1, .tone-2 .m2, .tone-3 .m3 { display: inline; }
 
 /* Grain: the only texture. feTurbulence at 6% opacity, overlay blend */
 .grain {
-  position: absolute; left: 0; top: 0; width: 1080px; height: 1350px;
+  position: absolute; left: 0; top: 0; width: 1080px; height: {{ H }}px;
   opacity: 0.06; mix-blend-mode: overlay; pointer-events: none;
 }
 
@@ -91,10 +91,10 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
   letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-muted);
   margin-right: -0.22em; /* cancel trailing tracking so the figures sit on the margin */
 }
-.rule-foot { position: absolute; left: 0; top: 1293px; width: 1080px; height: 1px; background: var(--ink-faint); }
+.rule-foot { position: absolute; left: 0; top: {{ H - 57 }}px; width: 1080px; height: 1px; background: var(--ink-faint); }
 /* Brand mark: the account name, set large, bold and in full ink so it reads at thumbnail size */
 .footer {
-  position: absolute; left: 84px; top: 1308px; height: 24px; white-space: nowrap;
+  position: absolute; left: 84px; top: {{ H - 42 }}px; height: 24px; white-space: nowrap;
   font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 22px; line-height: 24px;
   letter-spacing: 0.02em; color: var(--ink);
 }
@@ -142,7 +142,7 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 
   {# colour field: behind everything else #}
   <div class="bg" aria-hidden="true"><i class="b1"></i><i class="b2"></i><i class="b3"></i></div>
-  <svg class="motif" viewBox="0 0 1080 1350" aria-hidden="true">
+  <svg class="motif" viewBox="0 0 1080 {{ H }}" aria-hidden="true">
     <defs>
       <!-- m1: halftone dots, fading out toward the upper right -->
       <pattern id="dots-{{ slide.index }}" width="26" height="26" patternUnits="userSpaceOnUse">
@@ -151,7 +151,7 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
       <radialGradient id="dfade-{{ slide.index }}" cx="0.1" cy="0.95" r="0.85">
         <stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/>
       </radialGradient>
-      <mask id="dmask-{{ slide.index }}"><rect width="1080" height="1350" fill="url(#dfade-{{ slide.index }})"/></mask>
+      <mask id="dmask-{{ slide.index }}"><rect width="1080" height="{{ H }}" fill="url(#dfade-{{ slide.index }})"/></mask>
       <!-- m2: diagonal hatch, fading toward the lower right -->
       <pattern id="hatch-{{ slide.index }}" width="52" height="52" patternUnits="userSpaceOnUse" patternTransform="rotate(35)">
         <line x1="0" y1="0" x2="0" y2="52" style="stroke: var(--c3)" stroke-width="1.5"/>
@@ -159,7 +159,7 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
       <linearGradient id="hfade-{{ slide.index }}" x1="0" y1="0" x2="1" y2="1">
         <stop offset="0" stop-color="#fff"/><stop offset="0.65" stop-color="#fff" stop-opacity="0"/>
       </linearGradient>
-      <mask id="hmask-{{ slide.index }}"><rect width="1080" height="1350" fill="url(#hfade-{{ slide.index }})"/></mask>
+      <mask id="hmask-{{ slide.index }}"><rect width="1080" height="{{ H }}" fill="url(#hfade-{{ slide.index }})"/></mask>
     </defs>
 
     <!-- m0: concentric rings around a small solid dot, upper right -->
@@ -176,19 +176,19 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 
     <!-- m1: halftone dot field -->
     <g class="m1" mask="url(#dmask-{{ slide.index }})">
-      <rect width="1080" height="1350" style="fill: url(#dots-{{ slide.index }})" opacity="0.85"/>
+      <rect width="1080" height="{{ H }}" style="fill: url(#dots-{{ slide.index }})" opacity="0.85"/>
     </g>
 
     <!-- m2: diagonal hatch -->
     <g class="m2" mask="url(#hmask-{{ slide.index }})" opacity="0.9">
-      <rect width="1080" height="1350" style="fill: url(#hatch-{{ slide.index }})"/>
+      <rect width="1080" height="{{ H }}" style="fill: url(#hatch-{{ slide.index }})"/>
     </g>
 
     <!-- m3: orbits sweeping up from the bottom left -->
     <g class="m3" fill="none" stroke-linecap="round" opacity="0.55">
-      <path d="M -80 1350 A 700 700 0 0 1 620 650" style="stroke: var(--c1)" stroke-width="3"/>
-      <path d="M -80 1350 A 900 900 0 0 1 820 450" style="stroke: var(--c2)" stroke-width="2"/>
-      <path d="M -80 1350 A 1100 1100 0 0 1 1020 250" style="stroke: var(--c3)" stroke-width="1.5"/>
+      <path d="M -80 {{ H }} A 700 700 0 0 1 620 650" style="stroke: var(--c1)" stroke-width="3"/>
+      <path d="M -80 {{ H }} A 900 900 0 0 1 820 450" style="stroke: var(--c2)" stroke-width="2"/>
+      <path d="M -80 {{ H }} A 1100 1100 0 0 1 1020 250" style="stroke: var(--c3)" stroke-width="1.5"/>
     </g>
   </svg>
   {# pencil edge filter for headlines: a small, uneven displacement on the glyph outlines #}
@@ -200,16 +200,16 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
   </svg>
 
   {# texture: one of six vector/filter textures per slide, chosen by index. Decorative only. #}
-  <svg class="tex tex-{{ slide.texture }}" viewBox="0 0 1080 1350" aria-hidden="true">
+  <svg class="tex tex-{{ slide.texture }}" viewBox="0 0 1080 {{ H }}" aria-hidden="true">
     <defs>
       <!-- tx1 wood: a solid colour field with long, low-contrast grain. Keeps the type readable. -->
-      <filter id="tx1-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+      <filter id="tx1-{{ slide.index }}" x="-200" y="-200" width="1480" height="{{ H + 400 }}" filterUnits="userSpaceOnUse">
         <feTurbulence type="fractalNoise" baseFrequency="0.0012 0.16" numOctaves="5" seed="{{ (slide.seed + slide.index) * 3 }}" result="n"/>
         <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -1.9" result="a"/>
         <feComposite in="SourceGraphic" in2="a" operator="in"/>
       </filter>
       <!-- tx2 streaks: stretched noise, like brushed metal -->
-      <filter id="tx2-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+      <filter id="tx2-{{ slide.index }}" x="-200" y="-200" width="1480" height="{{ H + 400 }}" filterUnits="userSpaceOnUse">
         <feTurbulence type="fractalNoise" baseFrequency="0.0015 0.42" numOctaves="2" seed="{{ (slide.seed + slide.index) *5 }}" result="n"/>
         <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.2 0 0 0 -0.7" result="a"/>
         <feComposite in="SourceGraphic" in2="a" operator="in"/>
@@ -218,31 +218,31 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
       <pattern id="tx3p-{{ slide.index }}" width="44" height="44" patternUnits="userSpaceOnUse">
         <path d="M0 0 H44 M0 0 V44" style="stroke: var(--c2)" stroke-width="2" fill="none"/>
       </pattern>
-      <filter id="tx3-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+      <filter id="tx3-{{ slide.index }}" x="-200" y="-200" width="1480" height="{{ H + 400 }}" filterUnits="userSpaceOnUse">
         <feTurbulence type="turbulence" baseFrequency="0.018" numOctaves="2" seed="{{ (slide.seed + slide.index) *11 }}" result="n"/>
         <feDisplacementMap in="SourceGraphic" in2="n" scale="46" xChannelSelector="R" yChannelSelector="G"/>
       </filter>
       <!-- tx4 speckle: sparse fibres, like pressed paper -->
-      <filter id="tx4-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+      <filter id="tx4-{{ slide.index }}" x="-200" y="-200" width="1480" height="{{ H + 400 }}" filterUnits="userSpaceOnUse">
         <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="{{ (slide.seed + slide.index) *13 }}" result="n"/>
         <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  14 0 0 0 -8.6" result="a"/>
         <feComposite in="SourceGraphic" in2="a" operator="in"/>
       </filter>
       <!-- tx5 wood rings: concentric rings bent by noise -->
-      <filter id="tx5-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+      <filter id="tx5-{{ slide.index }}" x="-200" y="-200" width="1480" height="{{ H + 400 }}" filterUnits="userSpaceOnUse">
         <feTurbulence type="fractalNoise" baseFrequency="0.004 0.012" numOctaves="3" seed="{{ (slide.seed + slide.index) *17 }}" result="n"/>
         <feDisplacementMap in="SourceGraphic" in2="n" scale="180" xChannelSelector="R" yChannelSelector="G"/>
       </filter>
     </defs>
 
     <!-- tx1 wood: solid tone field, grain in the same tone -->
-    <rect class="tk tk1" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c2)" filter="url(#tx1-{{ slide.index }})" opacity="0.32"/>
+    <rect class="tk tk1" x="-200" y="-200" width="1480" height="{{ H + 400 }}" style="fill: var(--c2)" filter="url(#tx1-{{ slide.index }})" opacity="0.32"/>
     <!-- tx2 streaks -->
-    <rect class="tk tk2" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c3)" filter="url(#tx2-{{ slide.index }})" opacity="0.6"/>
+    <rect class="tk tk2" x="-200" y="-200" width="1480" height="{{ H + 400 }}" style="fill: var(--c3)" filter="url(#tx2-{{ slide.index }})" opacity="0.6"/>
     <!-- tx3 mesh -->
-    <rect class="tk tk3" x="-200" y="-200" width="1480" height="1750" fill="url(#tx3p-{{ slide.index }})" filter="url(#tx3-{{ slide.index }})" opacity="0.5"/>
+    <rect class="tk tk3" x="-200" y="-200" width="1480" height="{{ H + 400 }}" fill="url(#tx3p-{{ slide.index }})" filter="url(#tx3-{{ slide.index }})" opacity="0.5"/>
     <!-- tx4 speckle -->
-    <rect class="tk tk4" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c2)" filter="url(#tx4-{{ slide.index }})" opacity="0.7"/>
+    <rect class="tk tk4" x="-200" y="-200" width="1480" height="{{ H + 400 }}" style="fill: var(--c2)" filter="url(#tx4-{{ slide.index }})" opacity="0.7"/>
     <!-- tx5 wood rings -->
     <g class="tk tk5" filter="url(#tx5-{{ slide.index }})" fill="none" style="stroke: var(--c1)" stroke-width="3" opacity="0.4">
       <circle cx="960" cy="1120" r="90"/><circle cx="960" cy="1120" r="140"/><circle cx="960" cy="1120" r="190"/>
@@ -284,9 +284,9 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
   <div class="rule-foot" data-furniture="rule"></div>
   <div class="footer" data-furniture="footer">vivektraces</div>
 
-  <svg class="grain" xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" aria-hidden="true">
+  <svg class="grain" xmlns="http://www.w3.org/2000/svg" width="1080" height="{{ H }}" aria-hidden="true">
     <filter id="grain"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/></filter>
-    <rect width="1080" height="1350" filter="url(#grain)"/>
+    <rect width="1080" height="{{ H }}" filter="url(#grain)"/>
   </svg>
 </div>
 
@@ -343,7 +343,7 @@ window.__fit = function () {
   // Nothing may leave the margins or cross the footer hairline.
   slide.querySelectorAll('[data-fit]').forEach(el => {
     const b = r(el);
-    if (b.left < 83 || b.right > 997 || b.top < 95 || b.bottom > 1294)
+    if (b.left < 83 || b.right > 997 || b.top < 95 || b.bottom > {{ H - 56 }})
       out.problems.push(`${el.dataset.id}: outside margins (${Math.round(b.left)},${Math.round(b.top)} to ${Math.round(b.right)},${Math.round(b.bottom)})`);
   });
   return out;
@@ -357,6 +357,38 @@ window.__rects = function () {
   };
   return { logo: q('[data-furniture="logo"]'), folio: q('[data-furniture="folio"]'),
            rule: q('[data-furniture="rule"]'), footer: q('[data-furniture="footer"]') };
+};
+
+// Write-on reveal, used only by the Reel renderer. __split wraps every non-space character of the
+// headline, the subtitle and the body in a span with an index. __reveal(p) shows the first p share
+// of them (0 to 1) and hides the rest. visibility keeps the layout still, so nothing moves.
+window.__split = function () {
+  let k = 0;
+  const walk = (node) => {
+    Array.from(node.childNodes).forEach(child => {
+      if (child.nodeType === Node.TEXT_NODE) {
+        const frag = document.createDocumentFragment();
+        for (const ch of child.textContent) {
+          if (ch.trim() === '') { frag.appendChild(document.createTextNode(ch)); continue; }
+          const s = document.createElement('span');
+          s.className = 'ch'; s.dataset.k = k++; s.textContent = ch;
+          frag.appendChild(s);
+        }
+        child.replaceWith(frag);
+      } else if (child.nodeType === Node.ELEMENT_NODE && !child.classList.contains('endmark')) {
+        walk(child);
+      }
+    });
+  };
+  document.querySelectorAll('.h, .body p').forEach(el => walk(el));
+  document.querySelector('.slide').dataset.total = k;
+  return k;
+};
+window.__reveal = function (p) {
+  const total = +document.querySelector('.slide').dataset.total;
+  document.querySelectorAll('.ch').forEach(el => {
+    el.style.visibility = (+el.dataset.k < p * total) ? 'visible' : 'hidden';
+  });
 };
 </script>
 </body>

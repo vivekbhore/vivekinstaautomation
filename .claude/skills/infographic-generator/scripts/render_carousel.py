@@ -52,10 +52,11 @@ SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHROME_ARGS = ["--force-color-profile=srgb", "--font-render-hinting=none", "--disable-lcd-text"]
 TEXTURES = [1, 2, 3, 4, 5]          # tx0 is retired; 1 fine grain, 2 streaks, 3 mesh, 4 speckle, 5 wood rings
 BACKGROUND_KEYS = {"texture", "tone"}   # optional on every slide; defaults come from the slide position
+NARRATION_KEYS = {"narration"}          # the spoken explanation for the Reel; optional, not shown on the slide
 ALLOWED_KEYS = {
-    "cover": {"role", "headline", "subtitle"} | BACKGROUND_KEYS,
-    "body": {"role", "heading", "body", "layout", "figure"} | BACKGROUND_KEYS,
-    "closing": {"role", "headline", "cta"} | BACKGROUND_KEYS,
+    "cover": {"role", "headline", "subtitle"} | BACKGROUND_KEYS | NARRATION_KEYS,
+    "body": {"role", "heading", "body", "layout", "figure"} | BACKGROUND_KEYS | NARRATION_KEYS,
+    "closing": {"role", "headline", "cta"} | BACKGROUND_KEYS | NARRATION_KEYS,
 }
 MAX_BODY_STRINGS = 3                 # body strings per middle slide
 FIGURE_EXTS = {".svg", ".png", ".jpg", ".jpeg"}
@@ -206,7 +207,7 @@ def build_view(copy: dict, out_dir: Path) -> tuple[list[dict], list[str]]:
         if accents > 1:
             raise Stop(f"slide {i} has {accents} accents; the limit is one per slide")
         if accents == 0:
-            warnings.append(f"slide {i} has no accent (one is expected: accent word, hairline or end mark)")
+            pass  # an accent is optional: a slide with none is fine
         view["accent_count"] = accents
         views.append(view)
     return views, warnings
@@ -287,7 +288,7 @@ def wait_for_images(page, n: int) -> None:
 
 def process_slide(page, tpl, ctx, n: int, shoot: bool, blocked: list[str]) -> dict:
     view = ctx["views"][n - 1]
-    html_text = tpl.render(slide=view, fonts=ctx["fonts"], logo_uri=ctx["logo_uri"], logo_w=ctx["logo_w"])
+    html_text = tpl.render(slide=view, fonts=ctx["fonts"], logo_uri=ctx["logo_uri"], logo_w=ctx["logo_w"], H=ctx["H"])
     html_path = ctx["html_dir"] / f"{n:02d}.html"
     html_path.write_text(html_text, encoding="utf-8")
 
@@ -309,9 +310,9 @@ def process_slide(page, tpl, ctx, n: int, shoot: bool, blocked: list[str]) -> di
     if shoot:
         jpg = ctx["out_dir"] / f"{n:02d}.jpg"
         page.screenshot(path=str(jpg), type="jpeg", quality=92,
-                        clip={"x": 0, "y": 0, "width": W, "height": H})
+                        clip={"x": 0, "y": 0, "width": W, "height": ctx["H"]})
         with Image.open(jpg) as im:
-            expect = (W * ctx["scale"], H * ctx["scale"])
+            expect = (W * ctx["scale"], ctx["H"] * ctx["scale"])
             if im.size != expect:
                 raise Stop(f"{jpg.name} is {im.size}, expected {expect}")
         say(f"slide {n:02d}: written {jpg.name} ({expect[0]}x{expect[1]})")
@@ -373,7 +374,7 @@ def run(args: argparse.Namespace) -> None:
     env = Environment(loader=FileSystemLoader(TEMPLATE_DIR), autoescape=select_autoescape(["html"]))
     tpl = env.get_template("slide.html")
     ctx = {"views": views, "fonts": fonts, "logo_uri": logo.as_uri(), "logo_w": logo_w,
-           "html_dir": html_dir, "out_dir": out_dir, "scale": args.scale}
+           "html_dir": html_dir, "out_dir": out_dir, "scale": args.scale, "H": args.canvas_height}
 
     targets = [args.slide] if args.slide else list(range(1, total + 1))
     # Slide 01 is the drift baseline, so measure it even when re-rendering one slide.
@@ -384,7 +385,7 @@ def run(args: argparse.Namespace) -> None:
     with sync_playwright() as pw:
         browser = pw.chromium.launch(args=CHROME_ARGS)
         try:
-            context = browser.new_context(viewport={"width": W, "height": H},
+            context = browser.new_context(viewport={"width": W, "height": ctx["H"]},
                                           device_scale_factor=args.scale)
 
             def guard(route):
@@ -418,6 +419,7 @@ def main() -> int:
     ap.add_argument("--slide", type=int, help="re-render one slide (1-based) after a copy edit")
     ap.add_argument("--out-root", default=str(Path.cwd() / "output"), help="output root (default ./output)")
     ap.add_argument("--logo", default=str(DEFAULT_LOGO), help="transparent PNG logo (default resources/logo.png)")
+    ap.add_argument("--canvas-height", type=int, default=H, help="slide height in px: 1350 (4:5 carousel, default) or 1920 (9:16 reel)")
     args = ap.parse_args()
     try:
         run(args)
