@@ -28,6 +28,11 @@
   --tone-teal: #14B8A6;
   --tone-violet: #7C5CFF;
   --tone-blue: #2F80FF;
+  /* Solid base per tone: the full-bleed colour every slide starts from. Textures sit on top. */
+  --base-magenta: #3A0D24;
+  --base-teal: #0A3432;
+  --base-violet: #211846;
+  --base-blue: #0C2956;
 }
 
 * { box-sizing: border-box; }
@@ -36,27 +41,31 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 /* Canvas: dark paper, lifted at the top */
 .slide {
   position: relative; width: 1080px; height: 1350px; overflow: hidden;
-  background: linear-gradient(180deg, #121212 0%, var(--paper) 70%, var(--paper) 100%);
+  background: var(--base);
 }
 
 /* Colour field: three soft blobs in the tone's colours, blurred, sitting behind everything */
-.bg { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.bg { display: none; } /* retired: the solid base and textures replace the blurred blobs */
 .bg i { position: absolute; display: block; border-radius: 50%; filter: blur(110px); }
 .bg .b1 { width: 900px; height: 900px; left: -260px; top: -240px; background: var(--c1); opacity: 0.62; }
 .bg .b2 { width: 820px; height: 820px; right: -300px; bottom: -260px; background: var(--c2); opacity: 0.56; }
 .bg .b3 { width: 520px; height: 520px; right: -60px; top: 380px; background: var(--c3); opacity: 0.34; }
-.tone-0 { --c1: var(--tone-magenta); --c2: var(--tone-violet); --c3: var(--tone-blue); }
-.tone-1 { --c1: var(--tone-teal); --c2: var(--tone-blue); --c3: var(--tone-magenta); }
-.tone-2 { --c1: var(--tone-violet); --c2: var(--tone-teal); --c3: var(--tone-magenta); }
-.tone-3 { --c1: var(--tone-blue); --c2: var(--tone-magenta); --c3: var(--tone-teal); }
+.tone-0 { --base: var(--base-magenta); --c1: var(--tone-magenta); --c2: var(--tone-violet); --c3: var(--tone-blue); }
+.tone-1 { --base: var(--base-teal); --c1: var(--tone-teal); --c2: var(--tone-blue); --c3: var(--tone-magenta); }
+.tone-2 { --base: var(--base-violet); --c1: var(--tone-violet); --c2: var(--tone-teal); --c3: var(--tone-magenta); }
+.tone-3 { --base: var(--base-blue); --c1: var(--tone-blue); --c2: var(--tone-magenta); --c3: var(--tone-teal); }
 /* Darkening scrim over the colour field, so the off-white type keeps its contrast */
 .scrim { position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(11, 11, 11, 0.55) 0%, rgba(11, 11, 11, 0.12) 100%); }
+  background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(11, 11, 11, 0.38) 0%, rgba(11, 11, 11, 0.05) 100%); }
 
 /* Motifs: one vector pattern per slide, chosen by tone index. Decorative only, no text.
    m0 rings, m1 halftone dots, m2 diagonal hatch, m3 orbits. Each fades out toward the text. */
 .motif { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; pointer-events: none; }
 .motif .m0, .motif .m1, .motif .m2, .motif .m3 { display: none; }
+/* Texture: one of tx0 to tx5 per slide. Sits above the colour field, below the motif and the scrim. */
+.tex { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; pointer-events: none; }
+.tex .tk { display: none; }
+.tex-0 .tk0, .tex-1 .tk1, .tex-2 .tk2, .tex-3 .tk3, .tex-4 .tk4, .tex-5 .tk5 { display: inline; }
 .tone-0 .m0, .tone-1 .m1, .tone-2 .m2, .tone-3 .m3 { display: inline; }
 
 /* Grain: the only texture. feTurbulence at 6% opacity, overlay blend */
@@ -81,10 +90,11 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
   margin-right: -0.22em; /* cancel trailing tracking so the figures sit on the margin */
 }
 .rule-foot { position: absolute; left: 0; top: 1293px; width: 1080px; height: 1px; background: var(--ink-faint); }
+/* Brand mark: the account name, set large, bold and in full ink so it reads at thumbnail size */
 .footer {
-  position: absolute; left: 84px; top: 1313px; height: 12px; white-space: nowrap;
-  font-family: "JetBrains Mono", monospace; font-weight: 500; font-size: 12px; line-height: 12px;
-  letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-muted);
+  position: absolute; left: 84px; top: 1308px; height: 24px; white-space: nowrap;
+  font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 22px; line-height: 24px;
+  letter-spacing: 0.02em; color: var(--ink);
 }
 
 /* Type */
@@ -114,13 +124,17 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 .stack .rule { width: 120px; height: 2px; margin-bottom: 48px; background-color: var(--ink-faint); }
 .stack .rule.accent { background-color: var(--accent); }
 .stack .body { margin-top: 56px; }
+/* Pictorial slot: a figure sits between the heading and the body, in a fixed frame, no box around it */
+.stack .figure { width: 912px; height: 400px; margin-top: 48px; }
+.stack .figure img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.stack .figure + .body { margin-top: 48px; }
 .cover .h { font-size: 164px; }
 .closing .h { font-size: 120px; }
 .closing .body { margin-top: 56px; }
 </style>
 </head>
 <body>
-<div class="slide {{ slide.role }}{% if slide.role == 'body' %} layout-{{ slide.layout | lower }}{% endif %} tone-{{ (slide.index - 1) % 4 }}"
+<div class="slide {{ slide.role }}{% if slide.role == 'body' %} layout-{{ slide.layout | lower }}{% endif %} tone-{{ slide.tone }}"
      data-role="{{ slide.role }}" data-index="{{ slide.index }}">
 
   {# colour field: behind everything else #}
@@ -174,27 +188,91 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
       <path d="M -80 1350 A 1100 1100 0 0 1 1020 250" style="stroke: var(--c3)" stroke-width="1.5"/>
     </g>
   </svg>
+  {# texture: one of six vector/filter textures per slide, chosen by index. Decorative only. #}
+  <svg class="tex tex-{{ slide.texture }}" viewBox="0 0 1080 1350" aria-hidden="true">
+    <defs>
+      <!-- tx0 topo: banded fractal noise, reads as contour lines -->
+      <filter id="tx0-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+        <feTurbulence type="fractalNoise" baseFrequency="0.0035" numOctaves="3" seed="{{ (slide.seed + slide.index) *7 }}" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="a"/>
+        <feComponentTransfer in="a" result="bands"><feFuncA type="discrete" tableValues="0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1"/></feComponentTransfer>
+        <feComposite in="SourceGraphic" in2="bands" operator="in"/>
+      </filter>
+      <!-- tx1 marble: a two-tone gradient pushed around by low-frequency noise -->
+      <linearGradient id="tx1g-{{ slide.index }}" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" style="stop-color: var(--c1)"/><stop offset="1" style="stop-color: var(--c2)"/>
+      </linearGradient>
+      <filter id="tx1-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+        <feTurbulence type="fractalNoise" baseFrequency="0.0055" numOctaves="4" seed="{{ (slide.seed + slide.index) *3 }}" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="260" xChannelSelector="R" yChannelSelector="G"/>
+        <feGaussianBlur stdDeviation="4"/>
+      </filter>
+      <!-- tx2 streaks: stretched noise, like brushed metal -->
+      <filter id="tx2-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+        <feTurbulence type="fractalNoise" baseFrequency="0.0015 0.42" numOctaves="2" seed="{{ (slide.seed + slide.index) *5 }}" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  2.2 0 0 0 -0.7" result="a"/>
+        <feComposite in="SourceGraphic" in2="a" operator="in"/>
+      </filter>
+      <!-- tx3 mesh: a fine grid pushed off-true by noise, like woven cloth -->
+      <pattern id="tx3p-{{ slide.index }}" width="44" height="44" patternUnits="userSpaceOnUse">
+        <path d="M0 0 H44 M0 0 V44" style="stroke: var(--c2)" stroke-width="2" fill="none"/>
+      </pattern>
+      <filter id="tx3-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+        <feTurbulence type="turbulence" baseFrequency="0.018" numOctaves="2" seed="{{ (slide.seed + slide.index) *11 }}" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="46" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+      <!-- tx4 speckle: sparse fibres, like pressed paper -->
+      <filter id="tx4-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+        <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="{{ (slide.seed + slide.index) *13 }}" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  14 0 0 0 -8.6" result="a"/>
+        <feComposite in="SourceGraphic" in2="a" operator="in"/>
+      </filter>
+      <!-- tx5 wood rings: concentric rings bent by noise -->
+      <filter id="tx5-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
+        <feTurbulence type="fractalNoise" baseFrequency="0.004 0.012" numOctaves="3" seed="{{ (slide.seed + slide.index) *17 }}" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="180" xChannelSelector="R" yChannelSelector="G"/>
+      </filter>
+    </defs>
+
+    <!-- tx0 topo -->
+    <rect class="tk tk0" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c1)" filter="url(#tx0-{{ slide.index }})" opacity="0.5"/>
+    <!-- tx1 marble -->
+    <rect class="tk tk1" x="-200" y="-200" width="1480" height="1750" style="fill: url(#tx1g-{{ slide.index }})" filter="url(#tx1-{{ slide.index }})" opacity="0.5"/>
+    <!-- tx2 streaks -->
+    <rect class="tk tk2" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c3)" filter="url(#tx2-{{ slide.index }})" opacity="0.6"/>
+    <!-- tx3 mesh -->
+    <rect class="tk tk3" x="-200" y="-200" width="1480" height="1750" fill="url(#tx3p-{{ slide.index }})" filter="url(#tx3-{{ slide.index }})" opacity="0.5"/>
+    <!-- tx4 speckle -->
+    <rect class="tk tk4" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c2)" filter="url(#tx4-{{ slide.index }})" opacity="0.7"/>
+    <!-- tx5 wood rings -->
+    <g class="tk tk5" filter="url(#tx5-{{ slide.index }})" fill="none" style="stroke: var(--c1)" stroke-width="3" opacity="0.4">
+      <circle cx="960" cy="1120" r="90"/><circle cx="960" cy="1120" r="140"/><circle cx="960" cy="1120" r="190"/>
+      <circle cx="960" cy="1120" r="240"/><circle cx="960" cy="1120" r="290"/><circle cx="960" cy="1120" r="340"/>
+      <circle cx="960" cy="1120" r="390"/><circle cx="960" cy="1120" r="440"/><circle cx="960" cy="1120" r="490"/>
+    </g>
+  </svg>
   <div class="scrim"></div>
 
   {# ---------- content ---------- #}
   {% if slide.role == 'cover' %}
   <div class="stack">
-    <div class="h" data-fit="headline" data-id="headline" data-max="164" data-min="140" data-lines="4">{{ slide.headline_html }}</div>
+    <div class="h" data-fit="headline" data-id="headline" data-max="164" data-min="140" data-lines="5">{{ slide.headline_html }}</div>
   </div>
 
   {% elif slide.role == 'body' %}
   <div class="stack">
     {% if slide.layout == 'B' %}<div class="rule{% if slide.rule_accent %} accent{% endif %}"></div>{% endif %}
-    <div class="h" data-fit="headline" data-id="heading" data-max="112" data-min="96" data-lines="3">{{ slide.heading_html }}</div>
-    <div class="body" data-fit="body" data-id="body">
+    <div class="h" data-fit="headline" data-id="heading" data-max="112" data-min="96" data-lines="4">{{ slide.heading_html }}</div>
+    {% if slide.figure_uri %}<div class="figure" data-fit="figure" data-id="figure"><img src="{{ slide.figure_uri }}" alt=""></div>{% endif %}
+    <div class="body" data-fit="body" data-id="body" data-lines="2">
       {% for line in slide.body_html %}<p>{{ line }}</p>{% endfor %}
     </div>
   </div>
 
   {% else %}
   <div class="stack">
-    <div class="h" data-fit="headline" data-id="headline" data-max="120" data-min="104" data-lines="3">{{ slide.headline_html }}<span class="endmark"></span></div>
-    <div class="body" data-fit="body" data-id="cta"><p>{{ slide.cta_html }}</p></div>
+    <div class="h" data-fit="headline" data-id="headline" data-max="120" data-min="104" data-lines="4">{{ slide.headline_html }}<span class="endmark"></span></div>
+    <div class="body" data-fit="body" data-id="cta" data-lines="2"><p>{{ slide.cta_html }}</p></div>
   </div>
   {% endif %}
 
@@ -213,7 +291,7 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 <script>
 // Fit routine. Called by render_carousel.py after document.fonts is ready.
 // Headlines shrink in 2px steps from data-max down to data-min, and no further.
-// Body text never shrinks: each body line must measure as a single line.
+// Body text never shrinks: each body string may wrap, up to the block's data-lines count.
 window.__fit = function () {
   const slide = document.querySelector('.slide');
   const out = { blocks: [], problems: [] };
@@ -235,18 +313,25 @@ window.__fit = function () {
   });
 
   document.querySelectorAll('[data-fit="body"]').forEach(block => {
+    const limit = +block.dataset.lines;
     block.querySelectorAll('p').forEach((p, i) => {
       const n = lineCount(p);
       const size = parseFloat(getComputedStyle(p).fontSize);
-      out.blocks.push({ id: `${block.dataset.id} line ${i + 1}`, size, lines: n, limit: 1 });
-      if (n !== 1) out.problems.push(`${block.dataset.id} line ${i + 1}: wraps to ${n} lines at ${size}px (copy too long for one line)`);
+      out.blocks.push({ id: `${block.dataset.id} line ${i + 1}`, size, lines: n, limit });
+      if (n > limit) out.problems.push(`${block.dataset.id} line ${i + 1}: wraps to ${n} lines at ${size}px, limit is ${limit} (copy too long)`);
     });
   });
 
   const r = el => el.getBoundingClientRect();
   const heading = slide.querySelector('[data-id="heading"]');
+  const figure = slide.querySelector('[data-id="figure"]');
   const body = slide.querySelector('.body');
-  if (heading && body && r(heading).bottom > r(body).top - 24)
+  // Stacked order is heading, figure, body. Each pair needs one gutter between them.
+  if (heading && figure && r(heading).bottom > r(figure).top - 24)
+    out.problems.push('heading and figure collide (less than one gutter apart)');
+  if (figure && body && r(figure).bottom > r(body).top - 24)
+    out.problems.push('figure and body collide (less than one gutter apart)');
+  if (heading && body && !figure && r(heading).bottom > r(body).top - 24)
     out.problems.push('heading and body collide (less than one gutter apart)');
 
   // Nothing may leave the margins or cross the footer hairline.

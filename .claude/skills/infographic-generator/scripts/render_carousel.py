@@ -12,8 +12,10 @@ the fit and drift checks.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import html
 import json
+import random
 import re
 import sys
 from pathlib import Path
@@ -46,11 +48,15 @@ THUMB_W = 360
 ACCENT_RE = re.compile(r"\*([^*]+)\*")
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHROME_ARGS = ["--force-color-profile=srgb", "--font-render-hinting=none", "--disable-lcd-text"]
+BACKGROUND_KEYS = {"texture", "tone"}   # optional on every slide; defaults come from the slide position
 ALLOWED_KEYS = {
-    "cover": {"role", "headline"},
-    "body": {"role", "heading", "body", "layout"},
-    "closing": {"role", "headline", "cta"},
+    "cover": {"role", "headline"} | BACKGROUND_KEYS,
+    "body": {"role", "heading", "body", "layout", "figure"} | BACKGROUND_KEYS,
+    "closing": {"role", "headline", "cta"} | BACKGROUND_KEYS,
 }
+MAX_BODY_STRINGS = 3                 # body strings per middle slide
+FIGURE_EXTS = {".svg", ".png", ".jpg", ".jpeg"}
+FIGURE_RE = re.compile(r"""(href|src)\s*=\s*["']\s*https?:""", re.IGNORECASE)
 
 
 class Stop(Exception):
@@ -83,9 +89,47 @@ def heading_markup(slide: dict, field: str, i: int) -> tuple[Markup, int]:
     return Markup("".join(out)), len(parts) // 2
 
 
-def build_view(copy: dict) -> tuple[list[dict], list[str]]:
+def check_figure(rel: str, out_dir: Path, i: int) -> str:
+    """A figure is a file under output/<slug>/ (SVG, PNG or JPEG). Returns its file:// URI."""
+    if not isinstance(rel, str) or not rel.strip():
+        raise Stop(f"slide {i}: 'figure' must be a path string")
+    path = (out_dir / rel).resolve()
+    if out_dir.resolve() not in path.parents:
+        raise Stop(f"slide {i}: figure {rel!r} must sit inside {out_dir}")
+    if not path.exists():
+        raise Stop(f"slide {i}: figure not found at {path}")
+    if path.suffix.lower() not in FIGURE_EXTS:
+        raise Stop(f"slide {i}: figure must be .svg, .png or .jpg, got {path.suffix!r}")
+    if path.suffix.lower() == ".svg" and FIGURE_RE.search(path.read_text(encoding="utf-8", errors="replace")):
+        raise Stop(f"slide {i}: SVG figure {path.name} links to a web address; figures must be self-contained")
+    return path.as_uri()
+
+
+def background_index(slide: dict, key: str, default: int, count: int, i: int) -> int:
+    """Optional texture (0-5) or tone (0-3) override; otherwise the position-based default."""
+    if key not in slide:
+        return default
+    value = slide[key]
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < count:
+        raise Stop(f"slide {i}: '{key}' must be a whole number from 0 to {count - 1}")
+    return value
+
+
+def post_shuffle(slug: str) -> tuple[list[int], list[int], int]:
+    """Per-post order of textures and tones, plus a noise seed. Same slug, same result, so re-renders match."""
+    digest = hashlib.sha256(slug.encode("utf-8")).digest()
+    rng = random.Random(int.from_bytes(digest[:8], "big"))
+    textures = list(range(6))
+    tones = list(range(4))
+    rng.shuffle(textures)
+    rng.shuffle(tones)
+    return textures, tones, rng.randrange(1, 10000)
+
+
+def build_view(copy: dict, out_dir: Path) -> tuple[list[dict], list[str]]:
     slides = copy["slides"]
     total = len(slides)
+    textures, tones, seed = post_shuffle(str(copy.get("slug", "")))
     views: list[dict] = []
     warnings: list[str] = []
     body_index = 0
@@ -105,7 +149,10 @@ def build_view(copy: dict) -> tuple[list[dict], list[str]]:
 
         view = {"role": role, "index": i, "total": total, "layout": None,
                 "headline_html": "", "heading_html": "", "body_html": [],
-                "cta_html": "", "rule_accent": False}
+                "cta_html": "", "rule_accent": False,
+                "texture": background_index(s, "texture", textures[(i - 1) % 6], 6, i),
+                "tone": background_index(s, "tone", tones[(i - 1) % 4], 4, i),
+                "seed": seed}
 
         if role == "cover":
             view["headline_html"], accents = heading_markup(s, "headline", i)
@@ -114,13 +161,15 @@ def build_view(copy: dict) -> tuple[list[dict], list[str]]:
             body_index += 1
             view["heading_html"], accents = heading_markup(s, "heading", i)
             lines = s.get("body")
-            if not isinstance(lines, list) or not 1 <= len(lines) <= 2:
-                raise Stop(f"slide {i}: 'body' must be a list of one or two strings")
+            if not isinstance(lines, list) or not 1 <= len(lines) <= MAX_BODY_STRINGS:
+                raise Stop(f"slide {i}: 'body' must be a list of 1 to {MAX_BODY_STRINGS} strings")
             for line in lines:
                 if not isinstance(line, str) or not line.strip():
                     raise Stop(f"slide {i}: body lines must be non-empty strings")
                 if "*" in line:
                     raise Stop(f"slide {i}: asterisks are only allowed in headings")
+            if "figure" in s:
+                view["figure_uri"] = check_figure(s["figure"], out_dir, i)
             layout = str(s.get("layout") or ("A" if body_index % 2 else "B")).upper()
             if layout not in ("A", "B"):
                 raise Stop(f"slide {i}: layout must be A or B")
@@ -208,6 +257,21 @@ def wait_for_fonts(page) -> None:
         raise Stop(f"font fallback detected, faces not loaded: {bad or 'missing'}")
 
 
+def wait_for_images(page, n: int) -> None:
+    """Every figure must decode before the shot. A broken figure stops the run."""
+    broken = page.evaluate(
+        """async () => {
+            const imgs = Array.from(document.images);
+            await Promise.all(imgs.map(i => i.complete ? null : new Promise(r => {
+                i.addEventListener('load', r, {once: true}); i.addEventListener('error', r, {once: true});
+            })));
+            return imgs.filter(i => !(i.naturalWidth > 0)).map(i => i.getAttribute('src'));
+        }"""
+    )
+    if broken:
+        raise Stop(f"slide {n:02d}: figure did not load: {broken[0]}")
+
+
 def process_slide(page, tpl, ctx, n: int, shoot: bool, blocked: list[str]) -> dict:
     view = ctx["views"][n - 1]
     html_text = tpl.render(slide=view, fonts=ctx["fonts"], logo_uri=ctx["logo_uri"], logo_w=ctx["logo_w"])
@@ -216,6 +280,7 @@ def process_slide(page, tpl, ctx, n: int, shoot: bool, blocked: list[str]) -> di
 
     page.goto(html_path.resolve().as_uri(), wait_until="load")
     wait_for_fonts(page)
+    wait_for_images(page, n)
     if blocked:
         raise Stop(f"slide {n:02d} tried to load from the network ({blocked[0]}). "
                    "A font or asset is falling back; the run stopped.")
@@ -278,7 +343,7 @@ def run(args: argparse.Namespace) -> None:
     copy = load_copy(out_dir / "slides.json")
     if copy.get("slug") != args.slug:
         raise Stop(f"slides.json has slug {copy.get('slug')!r} but was called with {args.slug!r}")
-    views, warnings = build_view(copy)
+    views, warnings = build_view(copy, out_dir)
     for w in warnings:
         say(f"warning: {w}")
     total = len(views)

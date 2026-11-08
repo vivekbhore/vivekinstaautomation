@@ -33,6 +33,16 @@ git pull --ff-only origin <current-branch>
 - If `--ff-only` fails because the histories have diverged, stop and tell the user. Do not merge or rebase on your own.
 - Report the new commit hash, or say it was already up to date.
 
+## Step 0c: mark existing posts as Posted (every run, after the pull)
+
+Before creating anything new, every existing post on the pulled `main` is closed out:
+
+1. List `output/*/post.json`. For each one whose folder is not the post this run is about to create, set `"status"` to `"Posted"` regardless of its current status. Do this without asking. Leave every other field as it is.
+2. Do not commit or push here. The changed files are committed and pushed together with the new post in Step 3b, as one commit and one push.
+3. Report which posts were changed, with their old status, so the user can see what was closed.
+
+This closes out Approved posts that have not been published yet. Once a post is Posted, the routine will skip it, so it will not go out.
+
 ## Step 1: write the copy first
 
 Resolve the full copy for every slide and write `output/<topic-slug>/slides.json`. Do not stop for approval here: render straight away, then show the user the contact sheet next to the copy. They expect to edit either one.
@@ -45,8 +55,8 @@ Schema (flat, nothing else allowed):
   "slug": "...",
   "slides": [
     { "role": "cover", "headline": "Your team is not slow. Your *handoffs* are." },
-    { "role": "body", "heading": "...", "body": ["line one", "line two"] },
-    { "role": "body", "heading": "...", "body": ["one line is fine"], "layout": "B" },
+    { "role": "body", "heading": "...", "body": ["line one", "line two"], "figure": "assets/flow.svg" },
+    { "role": "body", "heading": "...", "body": ["one string is fine"], "layout": "B" },
     { "role": "closing", "headline": "...", "cta": "..." }
   ]
 }
@@ -55,7 +65,11 @@ Schema (flat, nothing else allowed):
 - `slug`: lowercase words joined by hyphens. It must match the folder name.
 - **Slide count** is 3 to 7, chosen by the content. Do not pad to hit a number.
 - **Cover** (slide 1): one bold hook headline. No body text, no subtitle, nothing else.
-- **Middle slides**: each carries exactly one idea, with a short `heading` and `body` of at most two strings. Each string must fit on one line at body size (30px), so keep it to roughly 45 characters. Never a paragraph. If an idea needs three lines, split it into two slides or cut it.
+- **Middle slides**: each carries exactly one idea, with a short `heading` and `body` of 1 to 3 strings. Each string may wrap onto up to 2 lines at body size (30px), so keep each string to roughly 90 characters at most. Never a paragraph. If an idea needs more than 3 strings, split it into two slides or cut it.
+- **Pictorial figures**: when a middle slide explains a concept, give it a `figure`, a picture that shows the idea. Use one on most concept slides, and skip it only for a slide that is a plain statement. The figure is a path relative to `output/<slug>/`, and it must be one of these:
+  - **An SVG you draw**: write it to `output/<slug>/assets/<name>.svg` with shapes only (circles, rectangles, lines, arrows, simple icons built from those). Use only the palette colours `#F2F0EC` (ink) and `#E8622C` (accent), with `stroke`/`fill` in those and opacity for softer tones. No text inside the SVG, since text besides the copy is not allowed. No `href` or `src` pointing at a web address.
+  - **A real photo the user supplies**: the user puts a `.png`, `.jpg` or `.jpeg` in `output/<slug>/assets/`, and the slide references it by path. You never fetch, download, or generate photos. If a concept needs a real photo and none is in `assets/`, ask the user to supply one, or draw an SVG instead.
+  - The figure fills a fixed 912×400 frame with `object-fit: contain`, so draw it with a wide, simple composition. There is no box or border around it.
 - **Closing** (last slide): a closing line and a soft call to action. Soft means an invitation, not a pitch. No "DM me", no "link in bio" unless the user asks for it.
 - **Accent markup**: wrap one word or short phrase in asterisks in a headline or heading to mark it as the slide's accent (rendered as italic in the accent colour). At most one per slide. The renderer refuses a slide with two.
 - **Layout** (middle slides only): optional `"A"` or `"B"`. Without it, odd body slides take A and even take B.
@@ -73,7 +87,8 @@ The script:
 2. Checks the logo: transparent PNG, at least 200px wide. It logs the result once.
 3. Renders each slide from `template/slide.html` with Jinja2 into `html/NN.html`, with absolute `file://` paths for fonts and logo. Every `http`/`https` request is blocked. Any attempt stops the run.
 4. Waits for `document.fonts.ready` and confirms all four faces are `loaded`.
-5. Fit check. Headlines shrink in 2px steps: cover 164 → 140, headings 112 → 96, closing 120 → 104. Body text is 30px and never shrinks. Line limits are 4 for the cover, 3 for headings and the closing, and 1 per body string. A block that still overflows stops the run and names the slide and block. Fix the copy, not the type.
+5. Fit check. Headlines shrink in 2px steps: cover 164 → 140, headings 112 → 96, closing 120 → 104. Body text is 30px and never shrinks. Line limits are 5 for the cover, 4 for headings and the closing, and 2 per body string or CTA. A block that still overflows stops the run and names the slide and block. Fix the copy, not the type.
+   Figures are checked too: each must load, sit inside the margins, and keep one gutter from the heading and the body. A missing or broken figure stops the run.
 6. Screenshots at 2x as JPEG quality 92, clipped to the viewport.
 7. Drift check after each slide: the logo, folio, footer hairline and footer boxes must match slide 01 to the pixel, or the run stops.
 8. Builds `contact-sheet.jpg`.
@@ -97,22 +112,22 @@ Write `output/<slug>/caption.md`:
 After the caption is written and the contact sheet has been checked, write `output/<slug>/post.json` and push the post. Run these from the project root:
 
 ```bash
-git add output/<slug>/
+git add output/<slug>/ <each post.json changed in Step 0c>
 git commit -m "post: <slug>"
 git push origin <current-branch>
 ```
 
-The commit message ends with the trailer `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
+This is one commit and one push. It carries the new post and any `post.json` files Step 0c closed out. The commit message ends with the trailer `Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>`.
 
 - `post.json` is always written in this step, with exactly this content:
 
   ```json
-  { "status": "Scheduled", "scheduled": "YYYY-MM-DD" }
+  { "status": "Approved", "scheduled": "YYYY-MM-DD" }
   ```
 
 - `scheduled` is always the same day as the push: today's date by the machine's clock at the moment of pushing. Compute it when you write the file, not from the user's words or an earlier date, and do not ask the user for a date. Example: `date +%F` in Git Bash prints it.
-- Never set `"status": "Approved"`. Only the user does that, by hand on GitHub. The publish routine ignores anything that is not Approved.
-- Stage only `output/<slug>/`. Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
+- The skill sets `"status": "Approved"` itself. Pushing it makes the post eligible for the publish routine on its `scheduled` date, with no further approval step. The user can still change the status on GitHub to stop it.
+- Stage only `output/<slug>/` and the `post.json` files Step 0c changed. Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
 - If `output/<slug>/post.json` already exists with status `Approved`, `Publishing`, or `Posted`, stop before committing and tell the user. Don't overwrite a post that is queued or has gone out.
 - Push to the branch you are on. Today that is `main`, which the routine reads.
 - Report the commit hash and the push result. If the push fails, say so and leave the commit in place.
@@ -121,12 +136,19 @@ The commit message ends with the trailer `Co-Authored-By: Claude Haiku 5.5 <nore
 
 - The look is a feature spread in an independent magazine, printed on dark stock. Do not turn it into a slide deck or a social template.
 - Tokens live in `:root` in `template/slide.html`: `--paper #0B0B0B`, `--ink #F2F0EC`, `--ink-body` (86%), `--ink-muted` (66%), `--ink-faint` (22%), `--accent #E8622C`.
-- Colour fields: each slide sits on a colour field from four tones (`--tone-magenta`, `--tone-teal`, `--tone-violet`, `--tone-blue`), rotated by slide index, plus a darkening scrim so the off-white type keeps contrast. The accent orange is deliberately not one of the tones, so the accent word always reads as the accent.
+- Backgrounds have three layers, from the bottom up:
+  1. **Solid base.** Each slide starts from a flat, full-bleed dark colour: `--base-magenta`, `--base-teal`, `--base-violet`, `--base-blue`.
+  2. **Texture.** One of six SVG/filter textures per slide (`tx0` topographic bands, `tx1` marbled, `tx2` brushed streaks, `tx3` woven mesh, `tx4` speckle, `tx5` wood rings). Each draws in the tone colours (`--tone-*`) at 40–70% opacity. Textures are built on oversized filter regions, so no edges show.
+  - **Shuffled per post.** The renderer shuffles the texture order and the tone order using the post's slug as the seed. Each post gets its own mix, and re-rendering the same post gives the same result. Within a post, neighbouring slides never share a texture or tone.
+  - **Per-slide override.** Any slide may set `"texture": 0–5` and/or `"tone": 0–3` in `slides.json` to fix its background. Use this only when the user asks for a specific look.
+  3. **Scrim.** A light radial darkening (about 38% at the centre) keeps the off-white type readable.
+  The accent orange is deliberately not one of the tones, so the accent word always reads as the accent. Textures and bases are decorative only: no text, no images, no network.
 - Motifs: each slide also carries one vector pattern, chosen by the same index as the tone: `m0` concentric rings, `m1` halftone dots, `m2` diagonal hatch, `m3` sweeping orbits. They are decorative only, drawn in the tone colours, and fade out toward the type. A motif never carries text, a box or an icon.
-- Layout: every slide is one block centred on the canvas. Body text is 30px and the headings are large, so the content reads at thumbnail size.
+- Layout: every slide is one block centred on the canvas. Body text is 30px and the headings are large, so the content reads at thumbnail size. A figure, when present, sits between the heading and the body in a fixed 912×400 frame.
+- Brand mark: the footer reads `vivektraces` in JetBrains Mono, 22px, weight 800, in full ink (`--ink`). It is the account name, so it stays in lowercase, and it is larger and whiter than the folio.
 - Fonts: Instrument Serif (regular and italic) for headlines; Manrope for body and CTA; JetBrains Mono for folio and footer. Do not swap families to suit a topic.
 - One accent per slide. The renderer counts them: an accent word, the hairline on a layout B slide with no accent word, or the end mark on the closing slide.
-- Forbidden: emoji, drop shadows, glows around text, boxes, cards, rounded corners, icons, watermarks, animation, and any text besides the copy plus folio and footer. Colour fields are allowed behind the type (the blurred tone blobs and scrim in the template); they must stay soft, and never become a solid panel the text sits in.
+- Forbidden: emoji, drop shadows, glows around text, boxes, cards, rounded corners, icons, watermarks, animation, and any text besides the copy plus folio and footer. The full-bleed solid base and the textures are allowed behind the type. A base is the whole slide, never a panel or box the text sits in.
 - The logo is a CSS mask filled with ink, so it renders in off-white with clean edges.
 
 ## Step 4: publish (manual, on your command)
@@ -139,7 +161,7 @@ python .claude/skills/infographic-generator/scripts/publish_post.py             
 python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG # publish one specific post
 ```
 
-- Lifecycle: the skill pushes `post.json` as `Scheduled`. The user changes it to `Approved` by hand on GitHub. The publish routine then picks up `Approved` posts whose `"scheduled"` date is on or before today. The script never approves anything.
+- Lifecycle: the skill pushes `post.json` as `Approved`. The publish routine picks up `Approved` posts whose `"scheduled"` date is on or before today. The script itself never changes a status to Approved.
 - Instagram fetches the slides from `IMAGE_BASE_URL/<slug>/NN.jpg`. Step 3b's push makes these available from the GitHub Pages site. The script itself doesn't push anything.
 - Status is written to the local `post.json` (`Publishing`, then `Posted` with the permalink, or `Failed` with the error). A post that is `Posted` or `Failed` is never picked up again. To retry a failed one, set its status back to `Approved` by hand.
 - Required environment variables: `IG_ACCESS_TOKEN` and `IG_BUSINESS_ACCOUNT_ID`. Optional: `IMAGE_BASE_URL`.
@@ -148,4 +170,5 @@ python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG 
 
 - No API calls, no keys, no network at render time.
 - Do not place a placeholder logo or fake any asset the user has not supplied.
-- Commit and push only `output/<slug>/`, as described in Step 3b. Never commit `html/`, and never push anything else. Never push a post marked Approved. The skill only ever pushes `Scheduled`.
+- Do not fetch, download, or generate photos. Real photos come from the user's `assets/` folder only.
+- Commit and push only `output/<slug>/`, as described in Step 3b. Never commit `html/`, and never push anything else. The skill pushes new posts as `Approved` and closes out existing posts as `Posted` (Step 0c). It never pushes any other status for a new post.
