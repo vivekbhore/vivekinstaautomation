@@ -48,9 +48,10 @@ THUMB_W = 360
 ACCENT_RE = re.compile(r"\*([^*]+)\*")
 SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHROME_ARGS = ["--force-color-profile=srgb", "--font-render-hinting=none", "--disable-lcd-text"]
+TEXTURES = [1, 2, 3, 4, 5]          # tx0 is retired; 1 fine grain, 2 streaks, 3 mesh, 4 speckle, 5 wood rings
 BACKGROUND_KEYS = {"texture", "tone"}   # optional on every slide; defaults come from the slide position
 ALLOWED_KEYS = {
-    "cover": {"role", "headline"} | BACKGROUND_KEYS,
+    "cover": {"role", "headline", "subtitle"} | BACKGROUND_KEYS,
     "body": {"role", "heading", "body", "layout", "figure"} | BACKGROUND_KEYS,
     "closing": {"role", "headline", "cta"} | BACKGROUND_KEYS,
 }
@@ -105,13 +106,13 @@ def check_figure(rel: str, out_dir: Path, i: int) -> str:
     return path.as_uri()
 
 
-def background_index(slide: dict, key: str, default: int, count: int, i: int) -> int:
-    """Optional texture (0-5) or tone (0-3) override; otherwise the position-based default."""
+def background_index(slide: dict, key: str, default: int, allowed, i: int) -> int:
+    """Optional texture or tone override; otherwise the shuffled default. `allowed` is a list of values."""
     if key not in slide:
         return default
     value = slide[key]
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value < count:
-        raise Stop(f"slide {i}: '{key}' must be a whole number from 0 to {count - 1}")
+    if isinstance(value, bool) or not isinstance(value, int) or value not in allowed:
+        raise Stop(f"slide {i}: '{key}' must be one of {list(allowed)}")
     return value
 
 
@@ -119,7 +120,7 @@ def post_shuffle(slug: str) -> tuple[list[int], list[int], int]:
     """Per-post order of textures and tones, plus a noise seed. Same slug, same result, so re-renders match."""
     digest = hashlib.sha256(slug.encode("utf-8")).digest()
     rng = random.Random(int.from_bytes(digest[:8], "big"))
-    textures = list(range(6))
+    textures = list(TEXTURES)
     tones = list(range(4))
     rng.shuffle(textures)
     rng.shuffle(tones)
@@ -150,12 +151,22 @@ def build_view(copy: dict, out_dir: Path) -> tuple[list[dict], list[str]]:
         view = {"role": role, "index": i, "total": total, "layout": None,
                 "headline_html": "", "heading_html": "", "body_html": [],
                 "cta_html": "", "rule_accent": False,
-                "texture": background_index(s, "texture", textures[(i - 1) % 6], 6, i),
-                "tone": background_index(s, "tone", tones[(i - 1) % 4], 4, i),
+                "texture": background_index(s, "texture", textures[(i - 1) % len(textures)], TEXTURES, i),
+                "tone": background_index(s, "tone", tones[(i - 1) % 4], range(4), i),
                 "seed": seed}
 
         if role == "cover":
             view["headline_html"], accents = heading_markup(s, "headline", i)
+            if "subtitle" in s:
+                sub = s["subtitle"]
+                if not isinstance(sub, list) or not 1 <= len(sub) <= 2:
+                    raise Stop(f"slide {i}: 'subtitle' must be a list of 1 or 2 strings")
+                for line in sub:
+                    if not isinstance(line, str) or not line.strip():
+                        raise Stop(f"slide {i}: subtitle lines must be non-empty strings")
+                    if "*" in line:
+                        raise Stop(f"slide {i}: asterisks are only allowed in headings")
+                view["subtitle_html"] = [line.strip() for line in sub]
 
         elif role == "body":
             body_index += 1

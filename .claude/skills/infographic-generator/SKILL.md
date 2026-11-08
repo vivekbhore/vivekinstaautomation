@@ -54,7 +54,7 @@ Schema (flat, nothing else allowed):
   "topic": "...",
   "slug": "...",
   "slides": [
-    { "role": "cover", "headline": "Your team is not slow. Your *handoffs* are." },
+    { "role": "cover", "headline": "Your team is not slow. Your *handoffs* are.", "subtitle": ["Why work stalls between people, and how to see it."] },
     { "role": "body", "heading": "...", "body": ["line one", "line two"], "figure": "assets/flow.svg" },
     { "role": "body", "heading": "...", "body": ["one string is fine"], "layout": "B" },
     { "role": "closing", "headline": "...", "cta": "..." }
@@ -64,13 +64,16 @@ Schema (flat, nothing else allowed):
 
 - `slug`: lowercase words joined by hyphens. It must match the folder name.
 - **Slide count** is 3 to 7, chosen by the content. Do not pad to hit a number.
-- **Cover** (slide 1): one bold hook headline. No body text, no subtitle, nothing else.
-- **Middle slides**: each carries exactly one idea, with a short `heading` and `body` of 1 to 3 strings. Each string may wrap onto up to 2 lines at body size (30px), so keep each string to roughly 90 characters at most. Never a paragraph. If an idea needs more than 3 strings, split it into two slides or cut it.
+- **Cover** (slide 1) has two parts:
+  - `headline`: the curiosity hook. Make the reader want the answer: a question, a surprising claim, or an open loop. Not a topic label.
+  - `subtitle`: 1 or 2 strings in plain words that say what the post is about, so the reader knows the topic before swiping. Same size and rules as body text.
+- **Middle slides**: each carries exactly one idea, with a `heading` and a `body` of 2 or 3 strings. Each string may wrap onto up to 2 lines at body size (30px), so keep it to roughly 90 characters. Make the content concrete: a definition, a worked example, a number, a comparison, or a step. The first string says what the idea is. The later strings say why it matters or how it works. Avoid vague claims with no detail. If an idea needs more than 3 strings, split it into two slides or cut it.
 - **Pictorial figures**: when a middle slide explains a concept, give it a `figure`, a picture that shows the idea. Use one on most concept slides, and skip it only for a slide that is a plain statement. The figure is a path relative to `output/<slug>/`, and it must be one of these:
   - **An SVG you draw**: write it to `output/<slug>/assets/<name>.svg` with shapes only (circles, rectangles, lines, arrows, simple icons built from those). Use only the palette colours `#F2F0EC` (ink) and `#E8622C` (accent), with `stroke`/`fill` in those and opacity for softer tones. No text inside the SVG, since text besides the copy is not allowed. No `href` or `src` pointing at a web address.
   - **A real photo the user supplies**: the user puts a `.png`, `.jpg` or `.jpeg` in `output/<slug>/assets/`, and the slide references it by path. You never fetch, download, or generate photos. If a concept needs a real photo and none is in `assets/`, ask the user to supply one, or draw an SVG instead.
   - The figure fills a fixed 912×400 frame with `object-fit: contain`, so draw it with a wide, simple composition. There is no box or border around it.
-- **Closing** (last slide): a closing line and a soft call to action. Soft means an invitation, not a pitch. No "DM me", no "link in bio" unless the user asks for it.
+- **Closing** (last slide): a closing line and a follow call to action, for example `"Follow vivektraces for the next one."` Soft means an invitation, not a pitch. No "DM me", no "link in bio" unless the user asks for it.
+- **Animation**: carousel slides are still JPEG images, so nothing on them moves. The follow prompt is static text on the closing slide. Motion would need a separate Reel video, which this skill does not produce.
 - **Accent markup**: wrap one word or short phrase in asterisks in a headline or heading to mark it as the slide's accent (rendered as italic in the accent colour). At most one per slide. The renderer refuses a slide with two.
 - **Layout** (middle slides only): optional `"A"` or `"B"`. Without it, odd body slides take A and even take B.
 - Body and CTA text cannot contain asterisks.
@@ -105,6 +108,7 @@ Write `output/<slug>/caption.md`:
 
 - The first line works as the preview Instagram shows before "more". It should stand on its own and make someone open the post.
 - Roughly 60 to 120 words in total, in the vivektraces account's voice: plain, specific, no hype and no buzzwords. If the user has a voice guide, follow it instead.
+- Before the hashtags, end the caption body with a follow line: `Follow vivektraces for more.`
 - A blank line, then 8 to 15 hashtags, mixed reach (a few broad, most niche). No hashtag walls. No emoji anywhere.
 
 ## Step 3b: commit and push
@@ -138,9 +142,9 @@ This is one commit and one push. It carries the new post and any `post.json` fil
 - Tokens live in `:root` in `template/slide.html`: `--paper #0B0B0B`, `--ink #F2F0EC`, `--ink-body` (86%), `--ink-muted` (66%), `--ink-faint` (22%), `--accent #E8622C`.
 - Backgrounds have three layers, from the bottom up:
   1. **Solid base.** Each slide starts from a flat, full-bleed dark colour: `--base-magenta`, `--base-teal`, `--base-violet`, `--base-blue`.
-  2. **Texture.** One of six SVG/filter textures per slide (`tx0` topographic bands, `tx1` fine grain on a solid field (the grain is kept low-contrast so type stays readable), `tx2` brushed streaks, `tx3` woven mesh, `tx4` speckle, `tx5` wood rings). Each draws in the tone colours (`--tone-*`) at 40–70% opacity. Textures are built on oversized filter regions, so no edges show.
+  2. **Texture.** One of five SVG/filter textures per slide (`tx1` fine grain on a solid field (kept low-contrast so type stays readable), `tx2` brushed streaks, `tx3` woven mesh, `tx4` speckle, `tx5` wood rings). The topographic texture is retired and is never used. Each draws in the tone colours (`--tone-*`) at 40–70% opacity. Textures are built on oversized filter regions, so no edges show.
   - **Shuffled per post.** The renderer shuffles the texture order and the tone order using the post's slug as the seed. Each post gets its own mix, and re-rendering the same post gives the same result. Within a post, neighbouring slides never share a texture or tone.
-  - **Per-slide override.** Any slide may set `"texture": 0–5` and/or `"tone": 0–3` in `slides.json` to fix its background. Use this only when the user asks for a specific look.
+  - **Per-slide override.** Any slide may set `"texture": 1–5` and/or `"tone": 0–3` in `slides.json` to fix its background. Use this only when the user asks for a specific look.
   3. **Scrim.** A light radial darkening (about 38% at the centre) keeps the off-white type readable.
   The accent orange is deliberately not one of the tones, so the accent word always reads as the accent. Textures and bases are decorative only: no text, no images, no network.
 - Motifs: each slide also carries one vector pattern, chosen by the same index as the tone: `m0` concentric rings, `m1` halftone dots, `m2` diagonal hatch, `m3` sweeping orbits. They are decorative only, drawn in the tone colours, and fade out toward the type. A motif never carries text, a box or an icon.

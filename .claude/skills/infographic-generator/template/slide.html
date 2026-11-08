@@ -62,10 +62,10 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
    m0 rings, m1 halftone dots, m2 diagonal hatch, m3 orbits. Each fades out toward the text. */
 .motif { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; pointer-events: none; }
 .motif .m0, .motif .m1, .motif .m2, .motif .m3 { display: none; }
-/* Texture: one of tx0 to tx5 per slide. Sits above the colour field, below the motif and the scrim. */
+/* Texture: one of tx1 to tx5 per slide (tx0 topographic is retired). Sits above the colour field, below the motif and the scrim. */
 .tex { position: absolute; left: 0; top: 0; width: 1080px; height: 1350px; pointer-events: none; }
 .tex .tk { display: none; }
-.tex-0 .tk0, .tex-1 .tk1, .tex-2 .tk2, .tex-3 .tk3, .tex-4 .tk4, .tex-5 .tk5 { display: inline; }
+.tex-1 .tk1, .tex-2 .tk2, .tex-3 .tk3, .tex-4 .tk4, .tex-5 .tk5 { display: inline; }
 .tone-0 .m0, .tone-1 .m1, .tone-2 .m2, .tone-3 .m3 { display: inline; }
 
 /* Grain: the only texture. feTurbulence at 6% opacity, overlay blend */
@@ -191,13 +191,6 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
   {# texture: one of six vector/filter textures per slide, chosen by index. Decorative only. #}
   <svg class="tex tex-{{ slide.texture }}" viewBox="0 0 1080 1350" aria-hidden="true">
     <defs>
-      <!-- tx0 topo: banded fractal noise, reads as contour lines -->
-      <filter id="tx0-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
-        <feTurbulence type="fractalNoise" baseFrequency="0.0035" numOctaves="3" seed="{{ (slide.seed + slide.index) *7 }}" result="n"/>
-        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  1 0 0 0 0" result="a"/>
-        <feComponentTransfer in="a" result="bands"><feFuncA type="discrete" tableValues="0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1"/></feComponentTransfer>
-        <feComposite in="SourceGraphic" in2="bands" operator="in"/>
-      </filter>
       <!-- tx1 wood: a solid colour field with long, low-contrast grain. Keeps the type readable. -->
       <filter id="tx1-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
         <feTurbulence type="fractalNoise" baseFrequency="0.0012 0.16" numOctaves="5" seed="{{ (slide.seed + slide.index) * 3 }}" result="n"/>
@@ -231,8 +224,6 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
       </filter>
     </defs>
 
-    <!-- tx0 topo -->
-    <rect class="tk tk0" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c1)" filter="url(#tx0-{{ slide.index }})" opacity="0.5"/>
     <!-- tx1 wood: solid tone field, grain in the same tone -->
     <rect class="tk tk1" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c2)" filter="url(#tx1-{{ slide.index }})" opacity="0.32"/>
     <!-- tx2 streaks -->
@@ -254,6 +245,9 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
   {% if slide.role == 'cover' %}
   <div class="stack">
     <div class="h" data-fit="headline" data-id="headline" data-max="164" data-min="140" data-lines="5">{{ slide.headline_html }}</div>
+    {% if slide.subtitle_html %}<div class="body" data-fit="body" data-id="subtitle" data-lines="2">
+      {% for line in slide.subtitle_html %}<p>{{ line }}</p>{% endfor %}
+    </div>{% endif %}
   </div>
 
   {% elif slide.role == 'body' %}
@@ -328,6 +322,10 @@ window.__fit = function () {
     out.problems.push('heading and figure collide (less than one gutter apart)');
   if (figure && body && r(figure).bottom > r(body).top - 24)
     out.problems.push('figure and body collide (less than one gutter apart)');
+  const headline = slide.querySelector('[data-id="headline"]');
+  const subtitle = slide.querySelector('[data-id="subtitle"]');
+  if (headline && subtitle && r(headline).bottom > r(subtitle).top - 24)
+    out.problems.push('cover headline and subtitle collide (less than one gutter apart)');
   if (heading && body && !figure && r(heading).bottom > r(body).top - 24)
     out.problems.push('heading and body collide (less than one gutter apart)');
 
