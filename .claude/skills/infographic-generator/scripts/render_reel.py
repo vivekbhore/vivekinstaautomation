@@ -7,8 +7,14 @@ Narration: each slide is read aloud by the Windows voice (scripts/speak.ps1). Th
 slide's headline or heading, then its body (or subtitle, or call to action). A slide can set its
 own spoken text with a "narration" string in slides.json. No network, no keys.
 
+Narration is matched line by line: each text line on a slide (the headline or heading, then each body,
+subtitle or CTA line) must be exactly one sentence of its narration, in the same order. The renderer
+stops if the counts differ. Each line is written on during its own sentence.
+
 Timing follows the narration:
-- The text is written on over 90% of the spoken length, so each line lands as it is said.
+- The narration's length is split across its sentences by character count. Each line is written on
+  over 90% of its sentence's share, so each line lands as its sentence is said. This is an estimate:
+  the voice gives no word timestamps, so lines may still drift a little within a sentence.
 - The slide lasts the spoken length plus 0.8 s, with a 4 s floor. There is no upper limit on length.
 - Motion: the finished slide zooms in slowly, fades in over 0.6 s, and rises 60 px into place.
 - Slides cross-fade over 0.5 s. Each slide's voice starts with its own slide.
@@ -43,7 +49,7 @@ PROJECT_ROOT = SCRIPT_DIR.parents[3]          # scripts -> skill -> skills -> .c
 OUTPUT_ROOT = PROJECT_ROOT / "output"
 FPS = 30
 W, H = 1080, 1920
-WRITE_SHARE = 0.9   # the text is finished at 90% of the spoken length
+WRITE_SHARE = 0.9   # each line is finished at 90% of its own sentence's share of the narration
 TAIL = 0.8          # seconds a finished slide stays after the voice stops
 MIN_SEC = 4.0       # floor only: a slide is never shorter than 4 s. There is no upper limit on length.
 DEFAULT_RATE = 0    # normal speaking speed (Kokoro speed 1.0)
@@ -85,6 +91,33 @@ def narration_for(slide: dict) -> str:
     return plain(text)
 
 
+def sentences(text: str) -> list[str]:
+    """Split narration into sentences at . ! or ? followed by a space or the end."""
+    return [s for s in re.split(r"(?<=[.!?])\s+", text) if s.strip()]
+
+
+def text_lines(slide: dict) -> list[str]:
+    """The on-screen text blocks in reading order: the headline or heading, then its lines."""
+    role = slide.get("role")
+    if role == "cover":
+        return [slide.get("headline", "")] + list(slide.get("subtitle") or [])
+    if role == "closing":
+        return [slide.get("headline", "")] + ([slide["cta"]] if slide.get("cta") else [])
+    return [slide.get("heading", "")] + list(slide.get("body") or [])
+
+
+def line_windows(narr: float, sents: list[str]) -> list[tuple[float, float]]:
+    """When each line is written, in seconds from the slide start: its own sentence's share of the narration."""
+    lengths = [max(1, len(s)) for s in sents]
+    total = sum(lengths)
+    windows, cum = [], 0.0
+    for length in lengths:
+        share = narr * length / total
+        windows.append((cum, cum + share * WRITE_SHARE))
+        cum += share
+    return windows
+
+
 def speak(text: str, wav: Path, engine: str, voice: str, rate: int) -> None:
     txt = wav.with_suffix(".txt")
     txt.write_text(text, encoding="utf-8")
@@ -114,13 +147,13 @@ def wav_seconds(wav: Path, ffprobe: str) -> float:
 
 # ------------------------------------------------------------------ frames
 
-def render_one_slide(job: tuple[str, int, float, float]) -> tuple[str, float]:
-    """Worker: screenshot every frame of one slide while its text is written on.
+def render_one_slide(job: tuple[str, int, list[tuple[float, float]], float]) -> tuple[str, float]:
+    """Worker: screenshot every frame of one slide while each line is written on in its own sentence.
 
     Runs in its own process with its own Chromium, so several slides render at once.
     Returns (frame folder, seconds shown).
     """
-    staging_post_s, n, write, seconds = job
+    staging_post_s, n, windows, seconds = job
     staging_post = Path(staging_post_s)
     copy = rc.load_copy(staging_post / "slides.json")
     views, _ = rc.build_view(copy, staging_post)
@@ -164,23 +197,32 @@ def render_one_slide(job: tuple[str, int, float, float]) -> tuple[str, float]:
             if report["problems"]:
                 raise Stop(f"slide {n:02d}: " + "; ".join(report["problems"]))
             page.evaluate("window.__split()")
+            blocks = page.evaluate("window.__blockCount()")
+            if blocks != len(windows):
+                raise Stop(f"slide {n:02d}: the page has {blocks} text lines but the narration has "
+                           f"{len(windows)} sentences. They must match one to one.")
             for f in range(round(seconds * FPS)):
-                p = min(1.0, (f / FPS) / write)
-                page.evaluate(f"window.__reveal({p:.5f})")
+                t = f / FPS
+                ps = []
+                for start, end in windows:
+                    span = end - start
+                    ps.append(1.0 if span <= 0 else min(1.0, max(0.0, (t - start) / span)))
+                page.evaluate(f"window.__revealBlocks({json.dumps(ps)})")
                 page.screenshot(path=str(frames_dir / f"{f:04d}.png"), type="png")
         finally:
             browser.close()
     return str(frames_dir), seconds
 
 
-def render_slides(staging_post: Path, timing: list[tuple[float, float]], workers: int) -> list[tuple[Path, float]]:
+def render_slides(staging_post: Path, timing: list[tuple[list[tuple[float, float]], float]],
+                  workers: int) -> list[tuple[Path, float]]:
     """Render all slides, several at a time. Results come back in slide order."""
     copy = rc.load_copy(staging_post / "slides.json")
     _, warnings = rc.build_view(copy, staging_post)
     for w in warnings:
         print(f"warning: {w}")
-    jobs = [(str(staging_post), n, write, seconds)
-            for n, (write, seconds) in enumerate(timing, 1)]
+    jobs = [(str(staging_post), n, windows, seconds)
+            for n, (windows, seconds) in enumerate(timing, 1)]
     results: list[tuple[Path, float]] = []
     with ProcessPoolExecutor(max_workers=workers) as pool:
         for n, (frames, seconds) in enumerate(pool.map(render_one_slide, jobs), 1):
@@ -263,16 +305,24 @@ def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
         raise Stop("these slides have no \"narration\" in slides.json: "
                    + ", ".join(f"{n:02d}" for n in missing)
                    + ". Write a spoken explanation for each slide, then run again.")
+    # Check every slide's narration against its lines before any speech is made.
+    sentence_lists = {}
+    for n, slide in enumerate(copy["slides"], 1):
+        sents = sentences(narration_for(slide))
+        lines = text_lines(slide)
+        if len(sents) != len(lines):
+            raise Stop(f"slide {n:02d}: {len(lines)} text lines but {len(sents)} narration sentences. "
+                       "Each line needs exactly one sentence, in the same order. Fix the narration.")
+        sentence_lists[n] = sents
     for n, slide in enumerate(copy["slides"], 1):
         text = narration_for(slide)
         wav = staging_post / f"voice{n:02d}.wav"
         speak(text, wav, engine, voice, rate)
         narr = wav_seconds(wav, ffprobe)
-        write = max(1.0, narr * WRITE_SHARE)
-        seconds = max(MIN_SEC, narr + TAIL, write + 0.5)
+        seconds = max(MIN_SEC, narr + TAIL)
         wavs.append(wav)
-        timing.append((write, seconds))
-        print(f"slide {n:02d} voice: {narr:.1f} s")
+        timing.append((line_windows(narr, sentence_lists[n]), seconds))
+        print(f"slide {n:02d} voice: {narr:.1f} s, {len(sentence_lists[n])} lines")
 
     slides = render_slides(staging_post, timing, workers)
     return encode(post_dir, slides, wavs, find_tool("ffmpeg"))

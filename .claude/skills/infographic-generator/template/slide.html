@@ -390,6 +390,20 @@ window.__reveal = function (p) {
     el.style.visibility = (+el.dataset.k < p * total) ? 'visible' : 'hidden';
   });
 };
+// Per-line write-on, used by the Reel renderer. A text block is the headline or heading (.h) or one
+// body/subtitle/CTA line (.body p), in reading order. __blockCount() returns how many there are, so
+// the renderer can check them against the narration. __revealBlocks(ps) shows the first ps[i] share
+// of block i's characters (0 to 1), so each line is written as its own sentence is spoken.
+window.__blockCount = function () {
+  return document.querySelectorAll('.h, .body p').length;
+};
+window.__revealBlocks = function (ps) {
+  document.querySelectorAll('.h, .body p').forEach((block, i) => {
+    const chars = block.querySelectorAll('.ch');
+    const shown = Math.floor((ps[i] || 0) * chars.length + 1e-9);
+    chars.forEach((el, j) => { el.style.visibility = j < shown ? 'visible' : 'hidden'; });
+  });
+};
 </script>
 </body>
 </html>

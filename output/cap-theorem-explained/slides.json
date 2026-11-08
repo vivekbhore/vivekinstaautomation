@@ -1,0 +1,65 @@
+{
+  "topic": "CAP theorem",
+  "slug": "cap-theorem-explained",
+  "slides": [
+    {
+      "role": "cover",
+      "headline": "Every distributed system has to give up *something*.",
+      "subtitle": [
+        "The CAP theorem: Consistency, Availability, and Partition tolerance.",
+        "Here is what each one means."
+      ],
+      "narration": "Every distributed system has to give up something. The CAP theorem is about three things: Consistency, Availability, and Partition tolerance. Here is what each one means."
+    },
+    {
+      "role": "body",
+      "heading": "Consistency: every read is *current*",
+      "body": [
+        "Every node returns the same, most recent value.",
+        "Deposit 500 on node A, then check node B: you see 500, never an old 400.",
+        "Users never see conflicting data."
+      ],
+      "figure": "assets/consistency.svg",
+      "narration": "Consistency means every read is current. Every node returns the same, most recent value. If you deposit 500 on node A and then check node B, you see 500, never an old 400. Users never see conflicting data."
+    },
+    {
+      "role": "body",
+      "heading": "Availability: every request gets *an answer*",
+      "body": [
+        "Every request sent to a working node gets a response.",
+        "The answer may be a little stale, but it always comes back.",
+        "A system that times out or refuses requests is not available."
+      ],
+      "figure": "assets/availability.svg",
+      "narration": "Availability means every request gets an answer. Every request sent to a working node gets a response. The answer may be a little stale, but it always comes back. A system that times out or refuses requests is not available."
+    },
+    {
+      "role": "body",
+      "heading": "Partition tolerance: the *network splits*",
+      "body": [
+        "Machines talk over network links, and links fail.",
+        "A partition cuts the cluster into groups that cannot reach each other.",
+        "The system must keep running through it, so plan for it."
+      ],
+      "figure": "assets/partition.svg",
+      "narration": "Partition tolerance means the system keeps working when the network splits. Machines talk over network links, and links fail. A partition cuts the cluster into groups that cannot reach each other. So the system must keep running through it, and you have to plan for it."
+    },
+    {
+      "role": "body",
+      "heading": "During a partition, you *choose*",
+      "body": [
+        "Refuse some requests to keep the data consistent: that is CP.",
+        "Or answer every request, even with stale data: that is AP.",
+        "The theorem forces this choice, so you cannot skip it."
+      ],
+      "figure": "assets/choice.svg",
+      "narration": "During a partition, you have to choose. You can refuse some requests to keep the data consistent, which is a CP system. Or you can answer every request, even with stale data, which is an AP system. The theorem forces this choice, so you cannot skip it."
+    },
+    {
+      "role": "closing",
+      "headline": "Ask what it does during a partition.",
+      "cta": "Follow vivektraces for the next one.",
+      "narration": "So when a database is called fast or safe, ask what it does during a partition. Follow vivektraces for the next one."
+    }
+  ]
+}
