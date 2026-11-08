@@ -138,7 +138,7 @@ This is one commit and one push. It carries the new post and any `post.json` fil
 - Tokens live in `:root` in `template/slide.html`: `--paper #0B0B0B`, `--ink #F2F0EC`, `--ink-body` (86%), `--ink-muted` (66%), `--ink-faint` (22%), `--accent #E8622C`.
 - Backgrounds have three layers, from the bottom up:
   1. **Solid base.** Each slide starts from a flat, full-bleed dark colour: `--base-magenta`, `--base-teal`, `--base-violet`, `--base-blue`.
-  2. **Texture.** One of six SVG/filter textures per slide (`tx0` topographic bands, `tx1` marbled, `tx2` brushed streaks, `tx3` woven mesh, `tx4` speckle, `tx5` wood rings). Each draws in the tone colours (`--tone-*`) at 40–70% opacity. Textures are built on oversized filter regions, so no edges show.
+  2. **Texture.** One of six SVG/filter textures per slide (`tx0` topographic bands, `tx1` fine grain on a solid field (the grain is kept low-contrast so type stays readable), `tx2` brushed streaks, `tx3` woven mesh, `tx4` speckle, `tx5` wood rings). Each draws in the tone colours (`--tone-*`) at 40–70% opacity. Textures are built on oversized filter regions, so no edges show.
   - **Shuffled per post.** The renderer shuffles the texture order and the tone order using the post's slug as the seed. Each post gets its own mix, and re-rendering the same post gives the same result. Within a post, neighbouring slides never share a texture or tone.
   - **Per-slide override.** Any slide may set `"texture": 0–5` and/or `"tone": 0–3` in `slides.json` to fix its background. Use this only when the user asks for a specific look.
   3. **Scrim.** A light radial darkening (about 38% at the centre) keeps the off-white type readable.

@@ -198,14 +198,11 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
         <feComponentTransfer in="a" result="bands"><feFuncA type="discrete" tableValues="0 1 0 1 0 1 0 1 0 1 0 1 0 1 0 1"/></feComponentTransfer>
         <feComposite in="SourceGraphic" in2="bands" operator="in"/>
       </filter>
-      <!-- tx1 marble: a two-tone gradient pushed around by low-frequency noise -->
-      <linearGradient id="tx1g-{{ slide.index }}" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" style="stop-color: var(--c1)"/><stop offset="1" style="stop-color: var(--c2)"/>
-      </linearGradient>
+      <!-- tx1 wood: a solid colour field with long, low-contrast grain. Keeps the type readable. -->
       <filter id="tx1-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
-        <feTurbulence type="fractalNoise" baseFrequency="0.0055" numOctaves="4" seed="{{ (slide.seed + slide.index) *3 }}" result="n"/>
-        <feDisplacementMap in="SourceGraphic" in2="n" scale="260" xChannelSelector="R" yChannelSelector="G"/>
-        <feGaussianBlur stdDeviation="4"/>
+        <feTurbulence type="fractalNoise" baseFrequency="0.0012 0.16" numOctaves="5" seed="{{ (slide.seed + slide.index) * 3 }}" result="n"/>
+        <feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  4 0 0 0 -1.9" result="a"/>
+        <feComposite in="SourceGraphic" in2="a" operator="in"/>
       </filter>
       <!-- tx2 streaks: stretched noise, like brushed metal -->
       <filter id="tx2-{{ slide.index }}" x="-200" y="-200" width="1480" height="1750" filterUnits="userSpaceOnUse">
@@ -236,8 +233,8 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 
     <!-- tx0 topo -->
     <rect class="tk tk0" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c1)" filter="url(#tx0-{{ slide.index }})" opacity="0.5"/>
-    <!-- tx1 marble -->
-    <rect class="tk tk1" x="-200" y="-200" width="1480" height="1750" style="fill: url(#tx1g-{{ slide.index }})" filter="url(#tx1-{{ slide.index }})" opacity="0.5"/>
+    <!-- tx1 wood: solid tone field, grain in the same tone -->
+    <rect class="tk tk1" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c2)" filter="url(#tx1-{{ slide.index }})" opacity="0.32"/>
     <!-- tx2 streaks -->
     <rect class="tk tk2" x="-200" y="-200" width="1480" height="1750" style="fill: var(--c3)" filter="url(#tx2-{{ slide.index }})" opacity="0.6"/>
     <!-- tx3 mesh -->
