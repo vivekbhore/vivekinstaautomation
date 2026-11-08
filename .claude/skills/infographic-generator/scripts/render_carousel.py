@@ -34,6 +34,7 @@ FONT_FILES = {
     "instrument_italic": "InstrumentSerif-Italic.ttf",
     "manrope": "Manrope-Variable.ttf",
     "jetbrains_mono": "JetBrainsMono-Variable.ttf",
+    "handwriting": "Caveat-Variable.ttf",
 }
 # Faces the page needs. Each must report "loaded" before any shot is taken.
 REQUIRED_FACES = [
@@ -41,6 +42,7 @@ REQUIRED_FACES = [
     'italic 400 88px "Instrument Serif"',
     '500 30px "Manrope"',
     '500 12px "JetBrains Mono"',
+    '400 88px "Caveat"',
 ]
 W, H = 1080, 1350
 LOGO_HEIGHT_PX = 28            # must match .logo in template/slide.html

@@ -13,6 +13,8 @@
   src: url("{{ fonts.manrope }}") format("truetype"); }
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 100 800; font-display: block;
   src: url("{{ fonts.jetbrains_mono }}") format("truetype"); }
+@font-face { font-family: "Caveat"; font-style: normal; font-weight: 400 700; font-display: block;
+  src: url("{{ fonts.handwriting }}") format("truetype"); }
 
 /* Tokens: change colours here and nowhere else */
 :root {
@@ -98,12 +100,13 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 }
 
 /* Type */
+/* Headlines are handwritten (Caveat) with a faint pencil edge, set over the textured background */
 .h {
-  margin: 0; font-family: "Instrument Serif", serif; font-weight: 400; font-style: normal;
-  font-size: 112px; line-height: 0.92; letter-spacing: -0.02em; color: var(--ink);
-  text-wrap: balance;
+  margin: 0; font-family: "Caveat", cursive; font-weight: 400; font-style: normal;
+  font-size: 112px; line-height: 0.92; letter-spacing: -0.01em; color: var(--ink);
+  text-wrap: balance; filter: url(#pencil);
 }
-.h .accent { font-style: italic; color: var(--accent); }
+.h .accent { font-style: normal; color: var(--accent); }
 .body p {
   margin: 0 0 14px; max-width: 800px;
   font-family: "Manrope", sans-serif; font-weight: 500; font-size: 30px; line-height: 1.4;
@@ -188,6 +191,14 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
       <path d="M -80 1350 A 1100 1100 0 0 1 1020 250" style="stroke: var(--c3)" stroke-width="1.5"/>
     </g>
   </svg>
+  {# pencil edge filter for headlines: a small, uneven displacement on the glyph outlines #}
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <filter id="pencil" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="{{ slide.seed }}" result="p"/>
+      <feDisplacementMap in="SourceGraphic" in2="p" scale="2.5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
   {# texture: one of six vector/filter textures per slide, chosen by index. Decorative only. #}
   <svg class="tex tex-{{ slide.texture }}" viewBox="0 0 1080 1350" aria-hidden="true">
     <defs>

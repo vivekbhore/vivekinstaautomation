@@ -16,5 +16,6 @@ curl -fL -o "$FONT_DIR/InstrumentSerif-Regular.ttf" "$RAW/instrumentserif/Instru
 curl -fL -o "$FONT_DIR/InstrumentSerif-Italic.ttf"  "$RAW/instrumentserif/InstrumentSerif-Italic.ttf"
 curl -fL -o "$FONT_DIR/Manrope-Variable.ttf"        "$RAW/manrope/Manrope%5Bwght%5D.ttf"
 curl -fL -o "$FONT_DIR/JetBrainsMono-Variable.ttf"  "$RAW/jetbrainsmono/JetBrainsMono%5Bwght%5D.ttf"
+curl -fL -o "$FONT_DIR/Caveat-Variable.ttf"         "$RAW/caveat/Caveat%5Bwght%5D.ttf"
 
 echo "Setup complete. Fonts in $FONT_DIR. Next: drop a transparent PNG at resources/logo.png."
