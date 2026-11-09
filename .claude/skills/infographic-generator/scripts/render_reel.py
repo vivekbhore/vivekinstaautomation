@@ -57,7 +57,7 @@ FADE = 0.5          # cross-fade between slides
 RISE = 0.8          # seconds for the slide to rise into place
 PAPER = "0x0B0B0B"
 DEFAULT_VOICE = "Microsoft Mark"
-DEFAULT_WORKERS = min(8, os.cpu_count() or 2)   # each worker runs its own Chromium; screenshots are the slow part
+DEFAULT_WORKERS = min(4, os.cpu_count() or 2)   # each worker runs its own Chromium and uses a lot of memory; 4 is the default cap
 Stop = rc.Stop
 
 
