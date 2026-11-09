@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Reel progress</title>
+<style>
+  :root { --paper:#0B0B0B; --ink:#F2F0EC; --muted:rgba(242,240,236,.66); --faint:rgba(242,240,236,.22); --accent:#E8622C; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.4 "Manrope", system-ui, sans-serif; }
+  main { max-width: 760px; margin: 48px auto; padding: 0 24px; }
+  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 700; }
+  .sub { color: var(--muted); margin-bottom: 28px; }
+  .overall { margin-bottom: 32px; }
+  .bar { height: 14px; background: var(--faint); border-radius: 0; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); width: 0%; transition: width .4s; }
+  .row { display: grid; grid-template-columns: 170px 1fr 90px; gap: 14px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--faint); }
+  .row .name { font-weight: 600; }
+  .row .state { text-align: right; color: var(--muted); font-size: 14px; }
+  .done .state { color: var(--ink); }
+  .running .state { color: var(--accent); }
+  .failed .state { color: var(--accent); }
+  .msg { margin-top: 24px; color: var(--muted); }
+  .err { margin-top: 24px; color: var(--accent); white-space: pre-wrap; }
+  .foot { margin-top: 36px; color: var(--faint); font-size: 13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Reel progress</h1>
+  <div class="sub" id="sub">waiting for the renderer…</div>
+  <div class="overall"><div class="bar"><div id="overall"></div></div></div>
+  <div id="rows"></div>
+  <div class="msg" id="msg"></div>
+  <div class="err" id="err"></div>
+  <div class="foot" id="foot"></div>
+</main>
+<script>
+  // The renderer writes progress.js next to this page. Reload it every 2 seconds so the bars follow the run.
+  function loadProgress() {
+    const s = document.createElement('script');
+    s.src = 'progress.js?t=' + Date.now();
+    s.onload = () => { s.remove(); draw(window.REEL_PROGRESS); };
+    s.onerror = () => { s.remove(); draw(null); };
+    document.body.appendChild(s);
+  }
+  function row(name, pct, state, label) {
+    const d = document.createElement('div');
+    d.className = 'row ' + state;
+    d.innerHTML = '<div class="name"></div><div class="bar"><div></div></div><div class="state"></div>';
+    d.querySelector('.name').textContent = name;
+    d.querySelector('.bar > div').style.width = Math.max(0, Math.min(100, pct)) + '%';
+    d.querySelector('.state').textContent = label;
+    return d;
+  }
+  function draw(p) {
+    const rows = document.getElementById('rows');
+    rows.innerHTML = '';
+    if (!p) {
+      document.getElementById('sub').textContent = 'no progress file yet, or the render has not started';
+      document.getElementById('overall').style.width = '0%';
+      schedule();
+      return;
+    }
+    document.getElementById('title').textContent = 'Reel progress: ' + p.slug;
+    const ageS = Math.round((Date.now() - p.updated) / 1000);
+    document.getElementById('sub').textContent = p.state === 'done' ? 'finished' :
+      p.state === 'failed' ? 'stopped' : p.state === 'idle' ? 'no render running' : 'running, stage: ' + p.stage;
+    document.getElementById('overall').style.width = p.overall + '%';
+    if (p.voice) {
+      const pct = p.voice.total ? 100 * p.voice.done / p.voice.total : 0;
+      rows.appendChild(row('Voice', pct, p.voice.done >= p.voice.total ? 'done' : (p.stage === 'voice' ? 'running' : ''), p.voice.done + ' / ' + p.voice.total));
+    }
+    (p.slides || []).forEach(s => {
+      const pct = s.frames_total ? 100 * s.frames_done / s.frames_total : 0;
+      const st = s.frames_done >= s.frames_total && s.frames_total > 0 ? 'done' : (s.frames_done > 0 ? 'running' : '');
+      rows.appendChild(row('Slide ' + String(s.n).padStart(2, '0'), pct, st,
+        s.frames_total ? s.frames_done + ' / ' + s.frames_total + ' frames' : 'waiting'));
+    });
+    if (p.encode) rows.appendChild(row('Encode', p.encode === 'done' ? 100 : (p.encode === 'running' ? 50 : 0), p.encode, p.encode));
+    (p.qa || []).forEach(q => rows.appendChild(row('QA slide ' + String(q.n).padStart(2, '0'), 100,
+      q.brightness < 20 ? 'failed' : 'done', 'brightness ' + q.brightness)));
+    document.getElementById('msg').textContent = p.message || '';
+    document.getElementById('err').textContent = p.error || '';
+    document.getElementById('foot').textContent = 'updated ' + (ageS <= 1 ? 'just now' : ageS + ' s ago');
+    if (p.state === 'running') schedule();
+  }
+  function schedule() { setTimeout(loadProgress, 2000); }
+  loadProgress();
+</script>
+</body>
+</html>

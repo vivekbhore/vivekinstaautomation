@@ -1,0 +1,81 @@
+{
+  "topic": "What is an LLM, explained simply",
+  "slug": "what-is-an-llm",
+  "slides": [
+    {
+      "role": "cover",
+      "headline": "An AI that writes essays is just *guessing* words.",
+      "subtitle": ["What an LLM is, in plain words, with examples.", "No maths needed."],
+      "narration": "Let's understand and learn LLM in one minute. Have you seen a chatbot write an email? Here is how it works.",
+      "keywords": [
+        {"word": "chatbot", "figure": "assets/kw-chatbot.svg"},
+        {"word": "email", "figure": "assets/kw-email.svg"},
+        {"word": "LLM", "figure": "assets/kw-brain.svg"}
+      ]
+    },
+    {
+      "role": "body",
+      "heading": "What an LLM *is*",
+      "body": ["LLM means Large Language Model.", "A program that read huge amounts of text, then learned how words fit together."],
+      "figure": "assets/input-model-output.svg",
+      "narration": "LLM stands for Large Language Model. It learns from huge amounts of text, like books and websites.",
+      "keywords": [
+        {"word": "text", "figure": "assets/kw-word.svg"},
+        {"word": "books", "figure": "assets/kw-books.svg"}
+      ]
+    },
+    {
+      "role": "body",
+      "heading": "It predicts the *next word*",
+      "body": ["You type: \"The cat sat on the\"", "It guesses the likeliest next word: \"mat\"."],
+      "figure": "assets/next-word.svg",
+      "narration": "It predicts the next word. You type the cat sat on the, and it picks mat.",
+      "keywords": [
+        {"word": "type", "figure": "assets/kw-keyboard.svg"},
+        {"word": "word", "figure": "assets/kw-word.svg"},
+        {"word": "mat", "figure": "assets/kw-mat.svg"}
+      ]
+    },
+    {
+      "role": "body",
+      "heading": "Why it is called *large*",
+      "body": ["Its connections number in the billions.", "Together they hold patterns of grammar, facts and style."],
+      "figure": "assets/network.svg",
+      "narration": "It is large because it has billions of connections. Each one acts as one of many tiny dials, tuned while it learns.",
+      "keywords": [
+        {"word": "billions", "figure": "assets/kw-dots.svg"},
+        {"word": "dials", "figure": "assets/kw-dial.svg"}
+      ]
+    },
+    {
+      "role": "body",
+      "heading": "Examples you already *use*",
+      "body": ["Chatbots that answer your questions in plain English.", "Autocomplete in email, and code helpers that suggest the next line."],
+      "layout": "B",
+      "narration": "You already use it in a chatbot and in email autocomplete. Same idea, different job.",
+      "keywords": [
+        {"word": "chatbot", "figure": "assets/kw-chatbot.svg"},
+        {"word": "email", "figure": "assets/kw-email.svg"}
+      ]
+    },
+    {
+      "role": "body",
+      "heading": "What it is *not*",
+      "body": ["It is not a search engine checking live facts.", "It can sound sure and still be wrong, so verify."],
+      "narration": "It is not a search engine. It can sound sure and still be wrong.",
+      "keywords": [
+        {"word": "search engine", "figure": "assets/kw-search.svg"},
+        {"word": "wrong", "figure": "assets/kw-wrong.svg"}
+      ]
+    },
+    {
+      "role": "closing",
+      "headline": "It sounds like thinking, but it is predicting.",
+      "cta": "Follow vivektraces for the next one.",
+      "narration": "So an LLM predicts words, again and again. That is why it sounds like thinking. Follow vivektraces for the next one.",
+      "keywords": [
+        {"word": "thinking", "figure": "assets/kw-brain.svg"}
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+<svg viewBox="0 0 912 400" xmlns="http://www.w3.org/2000/svg">
+<line x1="160" y1="80" x2="456" y2="40" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="80" x2="456" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="80" x2="456" y2="200" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="80" x2="456" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="80" x2="456" y2="360" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="200" x2="456" y2="40" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="200" x2="456" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="200" x2="456" y2="200" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="200" x2="456" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="200" x2="456" y2="360" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="320" x2="456" y2="40" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="320" x2="456" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="320" x2="456" y2="200" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="320" x2="456" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="160" y1="320" x2="456" y2="360" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="40" x2="752" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="40" x2="752" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="120" x2="752" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="120" x2="752" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="200" x2="752" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="200" x2="752" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="280" x2="752" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="280" x2="752" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="360" x2="752" y2="120" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<line x1="456" y1="360" x2="752" y2="280" stroke="#F2F0EC" stroke-opacity="0.22" stroke-width="2"/>
+<circle cx="160" cy="80" r="18" fill="#F2F0EC" fill-opacity="0.9"/>
+<circle cx="160" cy="200" r="18" fill="#F2F0EC" fill-opacity="0.9"/>
+<circle cx="160" cy="320" r="18" fill="#F2F0EC" fill-opacity="0.9"/>
+<circle cx="456" cy="40" r="18" fill="#F2F0EC" fill-opacity="0.6"/>
+<circle cx="456" cy="120" r="18" fill="#F2F0EC" fill-opacity="0.6"/>
+<circle cx="456" cy="200" r="18" fill="#F2F0EC" fill-opacity="0.6"/>
+<circle cx="456" cy="280" r="18" fill="#F2F0EC" fill-opacity="0.6"/>
+<circle cx="456" cy="360" r="18" fill="#F2F0EC" fill-opacity="0.6"/>
+<circle cx="752" cy="120" r="18" fill="#E8622C" fill-opacity="0.9"/>
+<circle cx="752" cy="280" r="18" fill="#E8622C" fill-opacity="0.9"/>
+</svg>

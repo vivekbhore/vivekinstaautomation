@@ -52,7 +52,7 @@ SLUG_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 CHROME_ARGS = ["--force-color-profile=srgb", "--font-render-hinting=none", "--disable-lcd-text"]
 TEXTURES = [1, 2, 3, 4, 5]          # tx0 is retired; 1 fine grain, 2 streaks, 3 mesh, 4 speckle, 5 wood rings
 BACKGROUND_KEYS = {"texture", "tone"}   # optional on every slide; defaults come from the slide position
-NARRATION_KEYS = {"narration"}          # the spoken explanation for the Reel; optional, not shown on the slide
+NARRATION_KEYS = {"narration", "keywords"}   # the spoken explanation and the Reel's on-screen keywords; not shown on the carousel
 ALLOWED_KEYS = {
     "cover": {"role", "headline", "subtitle"} | BACKGROUND_KEYS | NARRATION_KEYS,
     "body": {"role", "heading", "body", "layout", "figure"} | BACKGROUND_KEYS | NARRATION_KEYS,

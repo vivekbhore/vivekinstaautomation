@@ -137,6 +137,14 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 .cover-reel .h { font-size: 220px; font-weight: 700; line-height: 0.92; }
 .sketch-cover { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; }
 img.sketch-cover { filter: url(#pencil); }
+/* Reel keyword stage: a row of keywords across the stage. --ny is the height of the nodes; each picture sits on it. */
+.kw-stage { position: absolute; left: 0; top: 1330px; width: 1080px; height: 440px; pointer-events: none; }
+.kw-stage.cover { top: 1215px; }
+.kw-links { position: absolute; left: 0; top: 0; overflow: visible; }
+.kw { position: absolute; top: calc(var(--ny) - 100px); width: 260px; height: 300px; display: flex; flex-direction: column; align-items: center; opacity: 0; }
+.kw img { width: 200px; height: 200px; object-fit: contain; display: block; }
+.kw-word { margin-top: 8px; font-family: 'Caveat', cursive; font-size: 84px; line-height: 1; color: var(--ink); text-align: center; white-space: nowrap; }
+.kw-stage.cover .kw-word { font-size: 72px; }
 .sketch-cover .ink { fill: none; stroke: var(--ink); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
 .closing .h { font-size: 120px; }
 .closing .body { margin-top: 56px; }
@@ -315,6 +323,22 @@ img.sketch-cover { filter: url(#pencil); }
   {% endif %}
   {% endif %}
 
+  {# ---------- Reel keyword stage: keywords and pictures appear in spoken order and link up as they go ---------- #}
+  {% if kw %}
+  <div class="kw-stage{% if slide.role == 'cover' %} cover{% endif %}" style="--ny: {{ kw_ny }}px">
+    <svg class="kw-links" viewBox="0 0 1080 440" width="1080" height="440" aria-hidden="true">
+      {% for k in kw %}{% if k.link_from is not none %}<line data-link="{{ loop.index0 }}" x1="{{ k.link_from }}" y1="{{ kw_ny }}" x2="{{ k.x }}" y2="{{ kw_ny }}" stroke="#E8622C" stroke-width="4" stroke-linecap="round" stroke-dasharray="{{ k.link_len }}" stroke-dashoffset="{{ k.link_len }}"/>{% endif %}{% endfor %}
+      {% for k in kw %}<circle data-dot="{{ loop.index0 }}" cx="{{ k.x }}" cy="{{ kw_ny }}" r="12" fill="#E8622C" opacity="0"/>{% endfor %}
+    </svg>
+    {% for k in kw %}
+    <div class="kw" data-kw="{{ loop.index0 }}" style="left: {{ k.x - 130 }}px">
+      <img src="{{ k.figure_uri }}" alt="">
+      <div class="kw-word">{{ k.word }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
   {# ---------- furniture (identical on every slide) ---------- #}
   <div class="logo" data-furniture="logo"></div>
   <div class="folio" data-furniture="folio">{{ "%02d" % slide.index }} / {{ "%02d" % slide.total }}</div>
@@ -399,7 +423,7 @@ window.__rects = function () {
 // Reel motion, used only by the Reel renderer. Called once per frame with the time t (seconds) and the
 // sentence start times (beats). The figure floats gently all the time and gives a short lift on every
 // beat, so the picture keeps changing while the voice explains. The background motif drifts slowly.
-window.__frame = function (t, beats) {
+window.__frame = function (t, beats, kwStarts) {
   const fig = document.querySelector('[data-id="figure"] img');
   if (fig) {
     let pulse = 0;
@@ -407,6 +431,24 @@ window.__frame = function (t, beats) {
     const lift = Math.sin(t * 2 * Math.PI / 3.2) * 8;
     fig.style.transform = `translateY(${lift}px) scale(${1 + 0.04 * Math.min(pulse, 2)})`;
   }
+  // Connected keywords: each keyword and its dot appear 1.5 s before it is spoken and stay on screen.
+  // The line from the previous keyword is drawn in as the next one appears, so the links build up.
+  (kwStarts || []).forEach((s, i) => {
+    const el = document.querySelector(`.kw[data-kw="${i}"]`);
+    const on = t >= s;
+    if (el) {
+      el.style.opacity = on ? Math.min(1, (t - s) / 0.35) : 0;
+      el.style.transform = on ? `translateY(${12 * Math.exp(-5 * (t - s))}px)` : '';
+    }
+    const dot = document.querySelector(`[data-dot="${i}"]`);
+    if (dot) dot.setAttribute('opacity', on ? Math.min(1, (t - s) / 0.3) : 0);
+    const link = document.querySelector(`[data-link="${i}"]`);
+    if (link) {
+      const L = parseFloat(link.getAttribute('stroke-dasharray'));
+      const p = on ? Math.min(1, Math.max(0, (t - s) / 0.6)) : 0;
+      link.setAttribute('stroke-dashoffset', (L * (1 - p)).toFixed(2));
+    }
+  });
   const motif = document.querySelector('.motif');
   if (motif) {
     const dx = Math.sin(t * 2 * Math.PI / 9) * 1.5;
