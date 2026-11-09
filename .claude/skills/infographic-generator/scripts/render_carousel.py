@@ -160,6 +160,10 @@ def build_view(copy: dict, out_dir: Path) -> tuple[list[dict], list[str]]:
 
         if role == "cover":
             view["headline_html"], accents = heading_markup(s, "headline", i)
+            sketch = out_dir / "assets" / "cover-sketch.svg"
+            if sketch.exists():
+                # Per-post Reel cover drawing, drawn from the topic. Checked like any figure.
+                view["sketch_uri"] = check_figure("assets/cover-sketch.svg", out_dir, i)
             if "subtitle" in s:
                 sub = s["subtitle"]
                 if not isinstance(sub, list) or not 1 <= len(sub) <= 2:

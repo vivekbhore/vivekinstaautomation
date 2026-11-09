@@ -194,11 +194,15 @@ def publish_reel(folder: Path, token: str, account: str, base: str, dry_run: boo
     post = load_post(folder) or {}
     post["status"] = "Publishing"
     save_post(folder, post)
+    cover = folder / "reel-cover.jpg"
+    cover_url = f"{base.rstrip('/')}/{slug}/reel-cover.jpg" if cover.exists() else None
     try:
         wait_for_urls([url], slug, content_type="video/mp4")
-        container = graph("POST", f"{account}/media", token,
-                          {"media_type": "REELS", "video_url": url, "caption": caption,
-                           "share_to_feed": "true"})["id"]
+        params = {"media_type": "REELS", "video_url": url, "caption": caption, "share_to_feed": "true"}
+        if cover_url:
+            wait_for_urls([cover_url], slug, content_type="image/jpeg")
+            params["cover_url"] = cover_url
+        container = graph("POST", f"{account}/media", token, params)["id"]
         wait_finished(container, token, "reel", limit_s=REEL_POLL_LIMIT_S)
         media_id = graph("POST", f"{account}/media_publish", token, {"creation_id": container})["id"]
     except Stop as e:

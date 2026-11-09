@@ -57,7 +57,7 @@ FADE = 0.5          # cross-fade between slides
 RISE = 0.8          # seconds for the slide to rise into place
 PAPER = "0x0B0B0B"
 DEFAULT_VOICE = "Microsoft Mark"
-DEFAULT_WORKERS = min(4, os.cpu_count() or 2)
+DEFAULT_WORKERS = min(8, os.cpu_count() or 2)   # each worker runs its own Chromium; screenshots are the slow part
 Stop = rc.Stop
 
 
@@ -274,7 +274,7 @@ def encode(post_dir: Path, slides: list[tuple[Path, float]], wavs: list[Path], f
 
     out_path = post_dir / "reel.mp4"
     cmd += ["-filter_complex", ";".join(chains), "-map", "[vout]", "-map", "[aout]",
-            "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-pix_fmt", "yuv420p", "-r", str(FPS),
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p", "-r", str(FPS),
             "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", "-t", f"{total:.3f}", str(out_path)]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0:
@@ -325,7 +325,20 @@ def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
         print(f"slide {n:02d} voice: {narr:.1f} s, {len(sentence_lists[n])} lines")
 
     slides = render_slides(staging_post, timing, workers)
+    export_cover(slides[0][0], post_dir / "reel-cover.jpg")
     return encode(post_dir, slides, wavs, find_tool("ffmpeg"))
+
+
+def export_cover(first_slide_frames: Path, out: Path) -> None:
+    """The Reel cover: the fully written first slide, as a 1080x1920 JPEG. Instagram shows it as the thumbnail."""
+    from PIL import Image
+
+    frames = sorted(first_slide_frames.glob("*.png"))
+    if not frames:
+        raise Stop("no frames to build the Reel cover from")
+    with Image.open(frames[-1]) as im:
+        im.convert("RGB").save(out, "JPEG", quality=92)
+    print(f"cover: {out}")
 
 
 def main() -> int:

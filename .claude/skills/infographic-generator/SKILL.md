@@ -122,6 +122,10 @@ python .claude/skills/infographic-generator/scripts/render_reel.py <topic-slug> 
 - Output: `output/<slug>/reel.mp4`. Frames are written to `output/<slug>/html/` (gitignored).
 - Needs ffmpeg on PATH, or installed through winget (`Gyan.FFmpeg`). Speech needs the Windows voices, which ship with Windows.
 - Post the Reel by setting `"format": "reel"` in `post.json` (Step 3b). The publish script then uploads `reel.mp4` as a Reel, not a carousel. The caption and the closing slide are the same as for a carousel.
+- **Reel cover.** The render also writes `output/<slug>/reel-cover.jpg`: the fully written first slide at 1080×1920. Instagram shows it as the Reel's thumbnail, and the publish step sends it with the video. Make the cover catchy on purpose:
+  - Slide 1's headline is the hook: a question, a surprising number, or a bold claim, at most about 8 words. It must still read as a thumbnail, so avoid a long subtitle as the only hook.
+  - Set slide 1's `"texture"` and `"tone"` to high-contrast choices for Reels (for example a bright tone with a bold texture), so the thumbnail stands out in a feed. Keep the accent word on the headline.
+  - Look at `reel-cover.jpg` before pushing. If the hook doesn't read at thumbnail size, rewrite the headline and rebuild.
 
 ## Step 3: caption
 
