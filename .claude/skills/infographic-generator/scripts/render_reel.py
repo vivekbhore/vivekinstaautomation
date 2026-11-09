@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import argparse
 import glob
+import html
 import json
 import os
 import re
@@ -44,6 +45,7 @@ sys.path.insert(0, str(SCRIPT_DIR))
 import render_carousel as rc  # noqa: E402  (shared copy checks, fit routine and fonts)
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape  # noqa: E402
+from markupsafe import Markup  # noqa: E402
 from playwright.sync_api import sync_playwright  # noqa: E402
 
 PROJECT_ROOT = SCRIPT_DIR.parents[3]          # scripts -> skill -> skills -> .claude -> project
@@ -182,6 +184,17 @@ def wav_seconds(wav: Path, ffprobe: str) -> float:
 
 # ------------------------------------------------------------------ frames
 
+def cover_title_for(copy: dict) -> str:
+    """The Reel cover text: the topic only, e.g. 'Understand LLM in 1 min'. slides.json may set 'cover_title' instead."""
+    custom = copy.get("cover_title")
+    if isinstance(custom, str) and custom.strip():
+        return custom.strip()
+    topic = str(copy.get("topic", "")).strip()
+    if not topic:
+        raise Stop("slides.json needs a 'topic' (a short name, e.g. LLM) for the Reel cover")
+    return f"Understand {topic} in 1 min"
+
+
 def render_one_slide(job: tuple) -> tuple[str, float]:
     """Worker: screenshot every frame of one slide while each line is written on in its own sentence.
 
@@ -193,6 +206,9 @@ def render_one_slide(job: tuple) -> tuple[str, float]:
     copy = rc.load_copy(staging_post / "slides.json")
     views, _ = rc.build_view(copy, staging_post)
     view = views[n - 1]
+    if n == 1:
+        # The Reel cover text is the topic only, e.g. "Understand LLM in 1 min".
+        view = {**view, "headline_html": Markup(html.escape(cover_title_for(copy)))}
     # Keywords: each one's picture is checked like any figure, then passed to the template.
     # Keywords sit in a row across the stage, in spoken order. Each one links to the one before it.
     ny = 110 if copy["slides"][n - 1].get("role") == "cover" else 150

@@ -33,15 +33,15 @@ git pull --ff-only origin <current-branch>
 - If `--ff-only` fails because the histories have diverged, stop and tell the user. Do not merge or rebase on your own.
 - Report the new commit hash, or say it was already up to date.
 
-## Step 0c: mark existing posts as Posted (every run, after the pull)
+## Step 0c: clear old output when creating a new Reel (after the pull)
 
-Before creating anything new, every existing post on the pulled `main` is closed out:
+This step runs only when the new post is a Reel (`"format": "reel"`). Carousel posts skip it.
 
-1. List `output/*/post.json`. For each one whose folder is not the post this run is about to create, set `"status"` to `"Posted"` regardless of its current status. Do this without asking. Leave every other field as it is.
-2. Do not commit or push here. The changed files are committed and pushed together with the new post in Step 3b, as one commit and one push.
-3. Report which posts were changed, with their old status, so the user can see what was closed.
+1. List every folder in `output/`, whatever its `post.json` status, including Approved posts that have not gone out. Delete every one of them from the working folder. The user has confirmed this on purpose: all output folders are removed each time a new Reel is created.
+2. Do not commit or push here. The deletions are committed and pushed together with the new Reel in Step 3b, as one commit and one push. Stage the deletions with `git add -u output/` (tracked files only), not `git add -A`.
+3. Report every deleted folder with its status, so the user can see what was removed, and name any Approved post that was deleted before it went out.
 
-This closes out Approved posts that have not been published yet. Once a post is Posted, the routine will skip it, so it will not go out.
+Deleting an Approved post that has not gone out means it will not be published. Say so in the report.
 
 ## Step 1: write the copy first
 
@@ -131,7 +131,8 @@ python .claude/skills/infographic-generator/scripts/render_reel.py <topic-slug> 
 - Needs ffmpeg on PATH, or installed through winget (`Gyan.FFmpeg`). Speech needs the Windows voices, which ship with Windows.
 - Post the Reel by setting `"format": "reel"` in `post.json` (Step 3b). The publish script then uploads `reel.mp4` as a Reel, not a carousel. The caption and the closing slide are the same as for a carousel.
 - **Reel cover.** The render also writes `output/<slug>/reel-cover.jpg`: the fully written first slide at 1080×1920. Instagram shows it as the Reel's thumbnail, and the publish step sends it with the video. Make the cover catchy on purpose:
-  - Slide 1's headline is the hook: a question, a surprising number, or a bold claim, at most about 8 words. It must still read as a thumbnail, so avoid a long subtitle as the only hook.
+  - The cover text is the topic only, in the form `Understand <topic> in 1 min`. For example, a Reel about LLMs has the cover "Understand LLM in 1 min". Set `"topic"` in `slides.json` to the short name (LLM, Java, Vector Database), not a sentence. To use other wording, set `"cover_title"` in `slides.json`.
+  - The cover text replaces slide 1's headline in the Reel only. The carousel's slide 1 keeps its own hook headline.
   - Set slide 1's `"texture"` and `"tone"` to high-contrast choices for Reels (for example a bright tone with a bold texture), so the thumbnail stands out in a feed. Keep the accent word on the headline.
   - Look at `reel-cover.jpg` before pushing. If the hook doesn't read at thumbnail size, rewrite the headline and rebuild.
 
@@ -149,7 +150,8 @@ Write `output/<slug>/caption.md`:
 After the caption is written and the contact sheet has been checked, write `output/<slug>/post.json` and push the post. Run these from the project root:
 
 ```bash
-git add output/<slug>/ <each post.json changed in Step 0c>
+git add output/<slug>/
+git add -u output/          # Reel only: stages the folders deleted in Step 0c
 git commit -m "post: <slug>"
 git push origin <current-branch>
 ```
@@ -165,7 +167,7 @@ This is one commit and one push. It carries the new post and any `post.json` fil
 - `scheduled` is always the same day as the push: today's date by the machine's clock at the moment of pushing. Compute it when you write the file, not from the user's words or an earlier date, and do not ask the user for a date. Example: `date +%F` in Git Bash prints it.
 - For a Reel, add `"format": "reel"` to the same JSON: `{ "status": "Approved", "scheduled": "YYYY-MM-DD", "format": "reel" }`. Commit `output/<slug>/reel.mp4` with the post in the same commit.
 - The skill sets `"status": "Approved"` itself. Pushing it makes the post eligible for the publish routine on its `scheduled` date, with no further approval step. The user can still change the status on GitHub to stop it.
-- Stage only `output/<slug>/` and the `post.json` files Step 0c changed. Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
+- Stage only `output/<slug>/` and the deletions from Step 0c (`git add -u output/`). Never use `git add -A` or `git add .`. `html/` is gitignored, so it stays out.
 - If `output/<slug>/post.json` already exists with status `Approved`, `Publishing`, or `Posted`, stop before committing and tell the user. Don't overwrite a post that is queued or has gone out.
 - Push to the branch you are on. Today that is `main`, which the routine reads.
 - Report the commit hash and the push result. If the push fails, say so and leave the commit in place.
@@ -209,4 +211,4 @@ python .claude/skills/infographic-generator/scripts/publish_post.py --slug SLUG 
 - No API calls, no keys, no network at render time.
 - Do not place a placeholder logo or fake any asset the user has not supplied.
 - Do not fetch, download, or generate photos. Real photos come from the user's `assets/` folder only.
-- Commit and push only `output/<slug>/`, as described in Step 3b. Never commit `html/`, and never push anything else. The skill pushes new posts as `Approved` and closes out existing posts as `Posted` (Step 0c). It never pushes any other status for a new post.
+- Commit and push only `output/<slug>/`, as described in Step 3b. Never commit `html/`, and never push anything else. The skill pushes new posts as `Approved`. When the new post is a Reel, it also deletes the old output folders in the same commit (Step 0c). It never pushes any other status for a new post.
