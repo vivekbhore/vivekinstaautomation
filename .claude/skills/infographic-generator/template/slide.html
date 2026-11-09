@@ -396,6 +396,25 @@ window.__rects = function () {
            rule: q('[data-furniture="rule"]'), footer: q('[data-furniture="footer"]') };
 };
 
+// Reel motion, used only by the Reel renderer. Called once per frame with the time t (seconds) and the
+// sentence start times (beats). The figure floats gently all the time and gives a short lift on every
+// beat, so the picture keeps changing while the voice explains. The background motif drifts slowly.
+window.__frame = function (t, beats) {
+  const fig = document.querySelector('[data-id="figure"] img');
+  if (fig) {
+    let pulse = 0;
+    for (const b of beats) if (t >= b) pulse += Math.exp(-4 * (t - b));
+    const lift = Math.sin(t * 2 * Math.PI / 3.2) * 8;
+    fig.style.transform = `translateY(${lift}px) scale(${1 + 0.04 * Math.min(pulse, 2)})`;
+  }
+  const motif = document.querySelector('.motif');
+  if (motif) {
+    const dx = Math.sin(t * 2 * Math.PI / 9) * 1.5;
+    const dy = Math.cos(t * 2 * Math.PI / 11) * 1.2;
+    motif.style.transform = `scale(1.08) translate(${dx}%, ${dy}%)`;
+  }
+};
+
 // Write-on reveal, used only by the Reel renderer. __split wraps every non-space character of the
 // headline, the subtitle and the body in a span with an index. __reveal(p) shows the first p share
 // of them (0 to 1) and hides the rest. visibility keeps the layout still, so nothing moves.

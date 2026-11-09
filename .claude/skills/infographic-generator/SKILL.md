@@ -115,7 +115,10 @@ python .claude/skills/infographic-generator/scripts/render_reel.py <topic-slug> 
   - Not good: "Vector database. Everything becomes numbers. An embedding model reads a sentence." (That is the slide text read aloud.)
   - Use plain words, short sentences, and "you" where it helps. Spell out acronyms the first time (for example "HNSW, a fast index for nearest matches").
 - **Voice.** Kokoro (`af_heart` by default; `--voice am_michael` for a male voice) reads the narration locally from `C:\kokoro`. No network and no keys. Windows voices are available with `--engine windows`.
-- **Timing follows the voice.** The text is written on over 90% of the spoken length, so each line lands as it is said. A slide lasts the spoken length plus 0.8 seconds, with a 4-second floor for very short narration. There is no upper limit on slide or Reel length.
+- **Voice only, no captions.** On the Reel, body, subtitle and CTA text are hidden. Only the headline (or heading) and the figure stay on screen, and the voice carries the explanation. Nothing is typed out at the bottom. The narration does not have to match the number of on-screen lines.
+- **Constant motion.** The screen never sits still while the voice speaks: the figure floats and gives a short lift on every narration sentence (the beats), the background drifts slowly, and each slide zooms in slowly. A static slideshow is not acceptable for a Reel.
+- **Timing follows the voice.** A slide lasts the spoken length plus 0.8 seconds, with a 4-second floor for very short narration. Each slide's voice starts with the slide. There is no upper limit on slide or Reel length.
+- **Quality check.** After encoding, the renderer samples the middle of every slide and stops if any is blank or near-black. Check the printed `QA slide NN` lines and watch the video before posting.
 - **Speed.** The default speaking rate is normal (`--rate 0`). Only change it when the user asks for faster or slower speech.
 - **Motion.** Each finished slide zooms in slowly, fades in over 0.6 seconds, and rises 60 px into place. Slides cross-fade over 0.5 seconds.
 - **Layout.** Each slide is re-laid at 1080×1920. The skill never adds music.

@@ -193,21 +193,18 @@ def render_one_slide(job: tuple[str, int, list[tuple[float, float]], float]) -> 
             rc.wait_for_images(page, n)
             if blocked:
                 raise Stop(f"slide {n:02d} tried to load from the network ({blocked[0]}).")
+            # Fit check runs with the full copy on the page, so the copy is still checked.
             report = page.evaluate("window.__fit()")
             if report["problems"]:
                 raise Stop(f"slide {n:02d}: " + "; ".join(report["problems"]))
-            page.evaluate("window.__split()")
-            blocks = page.evaluate("window.__blockCount()")
-            if blocks != len(windows):
-                raise Stop(f"slide {n:02d}: the page has {blocks} text lines but the narration has "
-                           f"{len(windows)} sentences. They must match one to one.")
+            # Reel: the voice carries the explanation. On-screen body, subtitle and CTA text is hidden,
+            # so nothing is typed out at the bottom like captions. The headline and figure stay.
+            # The root .slide element also carries the class "body", so the selector is scoped to the text stack.
+            page.add_style_tag(content=".stack .body { display: none !important; }")
+            beats = [start for start, _ in windows]
             for f in range(round(seconds * FPS)):
                 t = f / FPS
-                ps = []
-                for start, end in windows:
-                    span = end - start
-                    ps.append(1.0 if span <= 0 else min(1.0, max(0.0, (t - start) / span)))
-                page.evaluate(f"window.__revealBlocks({json.dumps(ps)})")
+                page.evaluate(f"window.__frame({t:.4f}, {json.dumps(beats)})")
                 page.screenshot(path=str(frames_dir / f"{f:04d}.png"), type="png")
         finally:
             browser.close()
@@ -305,14 +302,10 @@ def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
         raise Stop("these slides have no \"narration\" in slides.json: "
                    + ", ".join(f"{n:02d}" for n in missing)
                    + ". Write a spoken explanation for each slide, then run again.")
-    # Check every slide's narration against its lines before any speech is made.
+    # The narration is free-form: any number of sentences. Sentences only mark beats for the motion.
     sentence_lists = {}
     for n, slide in enumerate(copy["slides"], 1):
-        sents = sentences(narration_for(slide))
-        lines = text_lines(slide)
-        if len(sents) != len(lines):
-            raise Stop(f"slide {n:02d}: {len(lines)} text lines but {len(sents)} narration sentences. "
-                       "Each line needs exactly one sentence, in the same order. Fix the narration.")
+        sents = sentences(narration_for(slide)) or [narration_for(slide)]
         sentence_lists[n] = sents
     for n, slide in enumerate(copy["slides"], 1):
         text = narration_for(slide)
@@ -326,7 +319,30 @@ def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
 
     slides = render_slides(staging_post, timing, workers)
     export_cover(slides[0][0], post_dir / "reel-cover.jpg")
-    return encode(post_dir, slides, wavs, find_tool("ffmpeg"))
+    out = encode(post_dir, slides, wavs, find_tool("ffmpeg"))
+    qa_reel(out, [seconds for _, seconds in timing], find_tool("ffmpeg"), staging_post)
+    return out
+
+
+def qa_reel(mp4: Path, durations: list[float], ffmpeg: str, scratch: Path) -> None:
+    """Check the finished Reel: sample the middle of every slide and stop on a near-black or blank frame."""
+    from PIL import Image, ImageStat
+
+    starts, played = [], 0.0
+    for i, d in enumerate(durations):
+        starts.append(0.0 if i == 0 else played - FADE)
+        played = (d if i == 0 else played + d - FADE)
+    for i, (start, d) in enumerate(zip(starts, durations), 1):
+        t = start + d / 2
+        png = scratch / f"qa{i:02d}.png"
+        r = subprocess.run([ffmpeg, "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(mp4), "-frames:v", "1",
+                            "-vf", "scale=108:192", str(png)], capture_output=True, text=True)
+        if r.returncode != 0 or not png.exists():
+            raise Stop(f"QA: could not sample slide {i:02d} at {t:.1f} s")
+        mean = ImageStat.Stat(Image.open(png).convert("L")).mean[0]
+        print(f"QA slide {i:02d} at {t:5.1f} s: brightness {mean:.0f}")
+        if mean < 20:
+            raise Stop(f"QA: slide {i:02d} is blank or near-black at {t:.1f} s (brightness {mean:.0f})")
 
 
 def export_cover(first_slide_frames: Path, out: Path) -> None:
