@@ -9,40 +9,53 @@ Environment variables (never hardcode, never print any token):
 Fixed values:
 - Repo: https://github.com/vivekbhore/vivekinstaautomation, branch main. Clone it fresh at the start of every run, read-only. The repo is public, so no GitHub token is needed.
 - IMAGE_BASE_URL: https://vivekbhore.github.io/vivekinstaautomation/output
+- Timezone for "today": IST (Asia/Kolkata, UTC+05:30). Today's date is the IST calendar date.
 
-Each post is a folder output/<slug>/ in the repo containing:
+Each post is a folder output/<slug>/ in the repo. There are two formats, chosen by the "format" field in post.json:
+
+Carousel (format missing or "carousel"):
+- 01.jpg, 02.jpg, ... the slides in order: 2 to 10 files, 2160x2700 JPEG
 - caption.md: the full caption, hashtags included
-- post.json: {"status": "Approved", "scheduled": "YYYY-MM-DD"} and optionally "format": "reel". A person sets status to "Approved" by hand on GitHub. This run never edits post.json.
 
-Format, decided by post.json:
-- Carousel (no "format" field, or "format": "carousel"): 01.jpg, 02.jpg, ... the slides in order, 2 to 10 files, 2160x2700 JPEG.
-- Reel ("format": "reel"): reel.mp4, a 9:16 video, and reel-cover.jpg, a 1080x1920 JPEG used as the Reel cover.
+Reel (format "reel"):
+- reel.mp4: the video, 1080x1920 H.264 with AAC audio, at most 1 GB
+- reel-cover.jpg: the Reel cover, 1080x1920 JPEG. Optional. If present, it is used as the Reel's cover image.
+- caption.md: the full caption, hashtags included
+- Slide JPEGs (01.jpg, ...) may also be present; they are not used for a reel.
+
+Both formats:
+- post.json: {"status": "Approved", "scheduled": "YYYY-MM-DD"} with an optional "format": "reel". A person sets status to "Approved" by hand on GitHub. This run never edits post.json.
 
 Status values: Scheduled, Approved. Only "Approved" is picked up.
 
-1. Clone the repo. List output/*/post.json. Keep those with status "Approved" and scheduled on or before today's date (UTC). Sort by scheduled date ascending, then folder name.
+1. Clone the repo. List output/*/post.json. Keep those with status "Approved" and scheduled on or before today's date (IST). Sort by scheduled date ascending, then folder name.
 2. Take the first one only. One post per run, never more. If nothing is Approved and due, exit quietly. That is a successful run.
-3. Validate the folder for its format:
+3. Validate the folder by its format:
    - Carousel: 2 to 10 slide files named NN.jpg in unbroken sequence from 01.
-   - Reel: reel.mp4 exists and is under 1 GB. reel-cover.jpg is optional; if present it is used.
-   - In both cases caption.md is non-empty and at most 2200 characters.
+   - Reel: reel.mp4 exists and is at most 1 GB. reel-cover.jpg is optional; if it exists, it must be a JPEG.
+   - In both cases, caption.md must be non-empty and at most 2200 characters.
    If invalid, stop and report the folder and the reason. Do not publish it.
 4. Duplicate check: GET /{IG_BUSINESS_ACCOUNT_ID}/media?fields=caption,permalink,timestamp&limit=50. If any existing post's caption exactly matches the contents of caption.md, stop and report that post's permalink as already published. Do not publish it again.
-5. Check the URLs for the format:
+5. Check the media URLs:
    - Carousel: IMAGE_BASE_URL/<slug>/NN.jpg for every slide. Each must return 200 with an image/jpeg content type.
    - Reel: IMAGE_BASE_URL/<slug>/reel.mp4 must return 200 with a video/mp4 content type. If reel-cover.jpg exists, IMAGE_BASE_URL/<slug>/reel-cover.jpg must return 200 with an image/jpeg content type.
    GitHub Pages can take a few minutes to publish new files, so if a URL returns 404, re-check every 30 seconds for up to 10 minutes. If any URL still fails after that, stop and report it.
-6. Create the media container:
-   - Carousel: for each image in order, POST /{IG_BUSINESS_ACCOUNT_ID}/media with image_url set to that URL and is_carousel_item=true. Fire these one after another with no polling in between, and record each child container ID. Then poll each child's status_code until FINISHED, with a 5-second interval and a 2-minute limit per child. Then POST /{IG_BUSINESS_ACCOUNT_ID}/media with media_type=CAROUSEL, children set to the comma-separated child IDs, and caption set to the contents of caption.md. Record the carousel container ID.
+6. Create the media containers:
+   - Carousel: for each image in order, POST /{IG_BUSINESS_ACCOUNT_ID}/media with image_url set to that URL and is_carousel_item=true. Fire these one after another with no polling in between, and record each child container ID. Any failure: stop and report. Do not delete containers already created.
    - Reel: POST /{IG_BUSINESS_ACCOUNT_ID}/media with media_type=REELS, video_url set to the reel.mp4 URL, caption set to the contents of caption.md, share_to_feed=true, and cover_url set to the reel-cover.jpg URL if that file exists. Record the container ID.
-7. Poll the container's status_code until FINISHED, with a 5-second interval. Carousels: 2-minute limit. Reels: 10-minute limit, since video processing is slower. ERROR, EXPIRED or timeout: stop and report.
-8. POST /{IG_BUSINESS_ACCOUNT_ID}/media_publish with creation_id set to the container ID. Record the returned media ID.
-9. GET /{media-id}?fields=permalink. Report the media ID and permalink. If this lookup fails, report the media ID and the error. The post is already live, so never retry it.
+7. Poll until the container reports FINISHED:
+   - Carousel: each child's status_code, with a 5-second interval and a 2-minute limit per child. Then the carousel container's status_code, with the same interval and limit.
+   - Reel: the container's status_code, with a 10-second interval and a 10-minute limit, because video takes longer to process.
+   ERROR, EXPIRED or timeout: stop and report.
+8. Carousel only: POST /{IG_BUSINESS_ACCOUNT_ID}/media with media_type=CAROUSEL, children set to the comma-separated child IDs, and caption set to the contents of caption.md. Record the carousel container ID. Then poll it until FINISHED, as in step 7. Any failure: stop and report.
+   Reel: skip this step. The container from step 6 is the one to publish.
+9. POST /{IG_BUSINESS_ACCOUNT_ID}/media_publish with creation_id set to the carousel container ID (carousel) or the reel container ID (reel). Record the returned media ID.
+10. GET /{media-id}?fields=permalink. Report the media ID and permalink. If this lookup fails, report the media ID and the error. The post is already live, so never retry it.
 
-Report: for each run, print the folder slug, the format, the outcome (published, skipped as duplicate, nothing due, or stopped with the reason), and the media ID and permalink if published. A person then sets status to "Posted" on GitHub, or leaves it "Approved" to stop a repeat, as they choose.
+Report: for each run, print the folder slug, its format, the outcome (published, skipped as duplicate, nothing due, or stopped with the reason), and the media ID and permalink if published. A person then sets status to "Posted" on GitHub, or leaves it "Approved" to stop a repeat, as they choose.
 
 Other rules
 - Never post twice. The duplicate check in step 4 must run before every publish. Only folders with status "Approved" are picked up.
 - Never retry a failed publish blindly. A stopped run is reported, and a person decides whether to run again.
 - Never write IG_ACCESS_TOKEN into a file or a log line. Strip access_token from any URL before logging it.
-- Do not modify, commit, or push anything. Do not modify slide images, the video, the cover, or caption.md.
+- Do not modify, commit, or push anything. Do not modify slide images, reel.mp4, reel-cover.jpg or caption.md.
