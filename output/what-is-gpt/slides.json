@@ -1,0 +1,76 @@
+{
+  "topic": "GPT",
+  "slug": "what-is-gpt",
+  "slides": [
+    {
+      "role": "cover",
+      "headline": "ChatGPT talks like a person. *GPT* is the engine under it.",
+      "subtitle": ["What GPT means, in plain words.", "No tech background needed."],
+      "narration": "Let's understand and learn GPT in 1 min. You may have used a chatbot like ChatGPT. But what does the GPT part mean? Let's find out in simple words.",
+      "keywords": [
+        {"word": "chatbot", "figure": "assets/kw-chatbot.svg"}
+      ]
+    },
+    {
+      "role": "body",
+      "heading": "GPT is three *words* in one name",
+      "body": [
+        "G: Generative. It creates new text.",
+        "P: Pre-trained. It learned from huge amounts of text first.",
+        "T: Transformer. The design that links words together."
+      ],
+      "figure": "assets/name-parts.svg",
+      "narration": "GPT stands for Generative Pre-trained Transformer. Generative means it creates new text. Pre-trained means it first learned from huge piles of books. Transformer is the design that lets it see how words connect.",
+      "keywords": [
+        {"word": "books", "figure": "assets/kw-books.svg"}
+      ]
+    },
+    {
+      "role": "body",
+      "heading": "At heart, it is a *word guesser*",
+      "body": [
+        "You type: \"The cat sat on the\"",
+        "It picks the likeliest next word: \"mat\".",
+        "Then it adds that word and guesses again."
+      ],
+      "figure": "assets/next-word.svg",
+      "layout": "B",
+      "narration": "At its heart, GPT is a word guesser. You type, the cat sat on the. It picks the most likely next word, which is mat. Then it guesses again, and again, until the answer is complete."
+    },
+    {
+      "role": "body",
+      "heading": "It links each word to the *right* one",
+      "body": [
+        "Older tools read one word after another, and forget.",
+        "A transformer looks at all the words together."
+      ],
+      "figure": "assets/attention.svg",
+      "narration": "Older tools read one word after another, so they forget the start of a long sentence. A transformer looks at all the words together. Take this sentence: the dog chased the ball because it was fast. The transformer links it back to dog, not ball."
+    },
+    {
+      "role": "body",
+      "heading": "ChatGPT is *GPT* in a chat window",
+      "body": [
+        "ChatGPT is the app you type into.",
+        "GPT is the engine that writes each reply."
+      ],
+      "layout": "B",
+      "narration": "So what is the difference? GPT is the engine. ChatGPT is the app you type into, built on top of that engine. The engine writes each reply one word at a time."
+    },
+    {
+      "role": "body",
+      "heading": "It can be *confidently* wrong",
+      "body": [
+        "It writes what sounds right, which is not always true.",
+        "For facts that matter, check a trusted source."
+      ],
+      "narration": "GPT writes what sounds right, and that is not always the same as what is true. It can make up facts with full confidence. So for anything important, check a trusted source."
+    },
+    {
+      "role": "closing",
+      "headline": "GPT is a word guesser, very well trained.",
+      "cta": "Follow vivektraces for the next one.",
+      "narration": "That is GPT in short: a transformer trained on huge amounts of text, guessing one word at a time. Follow vivektraces for the next one."
+    }
+  ]
+}
