@@ -1,0 +1,12 @@
+{
+  "topic": "ATM",
+  "slug": "atm-explained",
+  "slides": [
+    { "role": "cover", "headline": "How an *ATM* works", "subtitle": ["Four steps, from your card to your cash."], "narration": "An ATM gives you cash at any hour, without a bank teller. Here is what happens behind the screen, in four steps." },
+    { "role": "body", "heading": "Insert your card", "body": ["The chip or stripe is read by the machine."], "figure": "assets/card.svg", "narration": "First, you insert your card into the slot. The machine reads the chip or the magnetic stripe, and that tells it which account you are using. The card stays in the machine until the transaction is complete." },
+    { "role": "body", "heading": "Enter your PIN", "body": ["Your PIN is encrypted before it leaves the machine."], "figure": "assets/keypad.svg", "narration": "Next, you type your PIN on the keypad. The PIN is encrypted the moment you press the key, so it is never sent as plain text. Only the bank can check it, and the machine never stores it." },
+    { "role": "body", "heading": "The bank checks it", "body": ["The bank confirms your PIN and your balance."], "figure": "assets/bank.svg", "narration": "The machine sends your request over a secure network to your bank. The bank checks that the PIN is correct and that you have enough money in your account. Only after that does the bank approve the withdrawal." },
+    { "role": "body", "heading": "Cash comes out", "body": ["Notes are counted, dispensed, and a receipt is printed."], "figure": "assets/cash.svg", "narration": "Once the bank approves, the machine counts out your notes and dispenses them through the slot. You can take the cash and a receipt, and your card is returned to you. The bank then updates your balance to match." },
+    { "role": "closing", "headline": "Simple steps, safe cash.", "cta": "Follow vivektraces for the next one.", "narration": "Card, PIN, bank check, then cash. That is how an ATM works. Follow vivektraces for the next one." }
+  ]
+}
