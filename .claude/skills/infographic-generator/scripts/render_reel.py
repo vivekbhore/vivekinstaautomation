@@ -78,6 +78,30 @@ def find_tool(name: str) -> str:
 
 # ------------------------------------------------------------------ narration
 
+OPENING = "Let's understand how {topic} works in 1 minute."
+BRAND_SPOKEN = "Vivek Traces"   # how the voice should say the account name (the on-screen text stays vivektraces)
+
+
+def pronounce(text: str) -> str:
+    """Fix words the voice gets wrong, before speaking. Only the spoken text changes."""
+    return re.sub(r"vivektraces", BRAND_SPOKEN, text, flags=re.IGNORECASE)
+
+
+def ensure_opening(copy: dict) -> None:
+    """Every Reel opens with the same promise: "Let's understand how <topic> works in 1 minute."
+
+    Added to the cover's narration if it is missing. Written into the Reel's staging copy only.
+    """
+    topic = str(copy.get("topic", "")).strip()
+    if not topic or not copy.get("slides"):
+        return
+    cover = copy["slides"][0]
+    text = str(cover.get("narration", "")).strip()
+    opening = OPENING.format(topic=topic)
+    if not text.lower().startswith("let's understand"):
+        cover["narration"] = (opening + " " + text).strip()
+
+
 def plain(text: str) -> str:
     return re.sub(r"\s+", " ", text.replace("*", "")).strip()
 
@@ -185,14 +209,14 @@ def wav_seconds(wav: Path, ffprobe: str) -> float:
 # ------------------------------------------------------------------ frames
 
 def cover_title_for(copy: dict) -> str:
-    """The Reel cover text: the topic only, e.g. 'Understand LLM in 1 min'. slides.json may set 'cover_title' instead."""
+    """The Reel cover text: the topic only, e.g. 'Understand LLM in 1 minute'. slides.json may set 'cover_title' instead."""
     custom = copy.get("cover_title")
     if isinstance(custom, str) and custom.strip():
         return custom.strip()
     topic = str(copy.get("topic", "")).strip()
     if not topic:
         raise Stop("slides.json needs a 'topic' (a short name, e.g. LLM) for the Reel cover")
-    return f"Understand {topic} in 1 min"
+    return f"Understand {topic} in 1 minute"
 
 
 def render_one_slide(job: tuple) -> tuple[str, float]:
@@ -207,8 +231,10 @@ def render_one_slide(job: tuple) -> tuple[str, float]:
     views, _ = rc.build_view(copy, staging_post)
     view = views[n - 1]
     if n == 1:
-        # The Reel cover text is the topic only, e.g. "Understand LLM in 1 min".
-        view = {**view, "headline_html": Markup(html.escape(cover_title_for(copy)))}
+        # The Reel cover: the topic only, e.g. "Understand LLM in 1 minute", on the approved background
+        # (wood rings on the blue tone), with no drawing and no caption.
+        view = {**view, "headline_html": Markup(html.escape(cover_title_for(copy))),
+                "texture": 5, "tone": 3}
     # Keywords: each one's picture is checked like any figure, then passed to the template.
     # Keywords sit in a row across the stage, in spoken order. Each one links to the one before it.
     ny = 110 if copy["slides"][n - 1].get("role") == "cover" else 150
@@ -264,9 +290,14 @@ def render_one_slide(job: tuple) -> tuple[str, float]:
             # The root .slide element also carries the class "body", so the selector is scoped to the text stack.
             page.add_style_tag(content=".stack .body { display: none !important; }")
             beats = [start for start, _ in windows]
+            ends = [end for _, end in windows]   # when each sentence's words finish being spoken
+            # Burned-in captions: each sentence is shown on screen while it is spoken.
+            spoken = sentences(narration_for(copy["slides"][n - 1])) or [narration_for(copy["slides"][n - 1])]
+            caps = json.dumps([] if n == 1 else spoken)   # the cover carries no caption
+            end_at = json.dumps(seconds - 2.0 if copy["slides"][n - 1].get("role") == "closing" else None)
             for f in range(round(seconds * FPS)):
                 t = f / FPS
-                page.evaluate(f"window.__frame({t:.4f}, {json.dumps(beats)}, {json.dumps(kw_starts)})")
+                page.evaluate(f"window.__frame({t:.4f}, {json.dumps(beats)}, {json.dumps(kw_starts)}, {end_at}, {caps}, {json.dumps(ends)})")
                 page.screenshot(path=str(frames_dir / f"{f:04d}.png"), type="png")
         finally:
             browser.close()
@@ -302,6 +333,22 @@ def overall_percent(p: dict) -> float:
     return round(min(100.0, total), 1)
 
 
+FIXED_PROGRESS_DIR = PROJECT_ROOT / "reel-progress"   # one fixed page for every Reel build (gitignored)
+
+
+def mirror_progress(p: dict) -> None:
+    """Also write progress.js to the fixed page, so the progress link never changes."""
+    try:
+        FIXED_PROGRESS_DIR.mkdir(parents=True, exist_ok=True)
+        page = FIXED_PROGRESS_DIR / "progress.html"
+        if not page.exists():
+            shutil.copy2(rc.TEMPLATE_DIR / "progress.html", page)
+        (FIXED_PROGRESS_DIR / "progress.js").write_text(
+            "window.REEL_PROGRESS = " + json.dumps(p) + ";\n", encoding="utf-8")
+    except OSError:
+        pass  # the page is a convenience; the build never stops for it
+
+
 def write_progress(staging_post: Path, p: dict) -> None:
     """Write progress.js beside progress.html. The page reloads it every 2 seconds."""
     global _LAST, _LAST_DIR
@@ -313,6 +360,7 @@ def write_progress(staging_post: Path, p: dict) -> None:
     p["updated"] = int(time.time() * 1000)
     p["overall"] = overall_percent(p)
     _LAST, _LAST_DIR = p, staging_post
+    mirror_progress(p)
     # Progress must never stop the render. The browser may hold progress.js open for a moment, which blocks
     # a write on Windows, so retry briefly and then carry on; the next update will try again.
     text = "window.REEL_PROGRESS = " + json.dumps(p) + ";\n"
@@ -438,6 +486,8 @@ def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
         shutil.copytree(post_dir / "assets", staging_post / "assets", dirs_exist_ok=True)
 
     copy = json.loads(slides_json.read_text(encoding="utf-8"))
+    ensure_opening(copy)
+    (staging_post / "slides.json").write_text(json.dumps(copy, ensure_ascii=False, indent=2), encoding="utf-8")
     ffprobe = find_tool("ffprobe")
     wavs, timing = [], []
     progress = {"slug": slug, "state": "running", "stage": "voice",
@@ -457,7 +507,7 @@ def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
     for n, slide in enumerate(copy["slides"], 1):
         text = narration_for(slide)
         wav = staging_post / f"voice{n:02d}.wav"
-        speak(text, wav, engine, voice, rate)
+        speak(pronounce(text), wav, engine, voice, rate)
         narr = wav_seconds(wav, ffprobe)
         seconds = max(MIN_SEC, narr + TAIL)
         wavs.append(wav)
@@ -473,6 +523,8 @@ def build(slug: str, engine: str, voice: str, rate: int, workers: int) -> Path:
         raise Stop(f"the Reel would run {total:.0f} s; the limit is {MAX_SECONDS:.0f} s. "
                    "Shorten the narration of some slides, then run again.")
     print(f"reel length: {total:.1f} s (limit {MAX_SECONDS:.0f} s)")
+    if total < 50:
+        print(f"warning: the Reel is {total:.0f} s. Aim for about a minute (50 to 75 s): add a sentence or two of explanation to the middle slides.")
     slides = render_slides(staging_post, timing, workers, progress)
     export_cover(slides[0][0], post_dir / "reel-cover.jpg")
     progress["stage"], progress["encode"] = "encode", "running"

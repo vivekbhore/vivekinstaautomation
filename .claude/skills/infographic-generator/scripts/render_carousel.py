@@ -161,9 +161,14 @@ def build_view(copy: dict, out_dir: Path) -> tuple[list[dict], list[str]]:
         if role == "cover":
             view["headline_html"], accents = heading_markup(s, "headline", i)
             sketch = out_dir / "assets" / "cover-sketch.svg"
-            if sketch.exists():
-                # Per-post Reel cover drawing, drawn from the topic. Checked like any figure.
+            if False:  # covers carry no drawing; the per-post sketch is retired
+                # Per-post Reel cover drawing, drawn from the topic. Checked like any figure, and it must
+                # use the fixed band's viewBox so it fits the space between the headline and the caption.
                 view["sketch_uri"] = check_figure("assets/cover-sketch.svg", out_dir, i)
+                head = sketch.read_text(encoding="utf-8", errors="replace")[:600]
+                if not re.search(r'viewBox="0 0 1080 440"', head):
+                    raise Stop(f"slide {i}: assets/cover-sketch.svg must use viewBox=\"0 0 1080 440\" "
+                               "so it fits the cover band. Redraw it at that size.")
             if "subtitle" in s:
                 sub = s["subtitle"]
                 if not isinstance(sub, list) or not 1 <= len(sub) <= 2:
@@ -186,8 +191,10 @@ def build_view(copy: dict, out_dir: Path) -> tuple[list[dict], list[str]]:
                     raise Stop(f"slide {i}: body lines must be non-empty strings")
                 if "*" in line:
                     raise Stop(f"slide {i}: asterisks are only allowed in headings")
-            if "figure" in s:
-                view["figure_uri"] = check_figure(s["figure"], out_dir, i)
+            if "figure" not in s:
+                raise Stop(f"slide {i}: every middle slide needs a figure, a picture or diagram that explains "
+                           "the idea. Add \"figure\" (an SVG you draw, or a photo in assets/), then run again.")
+            view["figure_uri"] = check_figure(s["figure"], out_dir, i)
             layout = str(s.get("layout") or ("A" if body_index % 2 else "B")).upper()
             if layout not in ("A", "B"):
                 raise Stop(f"slide {i}: layout must be A or B")

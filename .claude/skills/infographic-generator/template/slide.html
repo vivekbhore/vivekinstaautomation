@@ -78,7 +78,7 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 
 /* Furniture: identical on every slide, absolute pixels */
 .logo {
-  position: absolute; left: 84px; top: 96px; height: 28px; width: {{ logo_w }}px;
+  position: absolute; left: 84px; top: {{ 300 if H > 1350 else 96 }}px; height: 28px; width: {{ logo_w }}px;
   background-color: var(--ink);
   -webkit-mask-image: url("{{ logo_uri }}"); mask-image: url("{{ logo_uri }}");
   -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
@@ -91,10 +91,10 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
   letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-muted);
   margin-right: -0.22em; /* cancel trailing tracking so the figures sit on the margin */
 }
-.rule-foot { position: absolute; left: 0; top: {{ H - 57 }}px; width: 1080px; height: 1px; background: var(--ink-faint); }
+.rule-foot { position: absolute; left: 0; top: {{ H - 57 if H <= 1350 else H - 420 }}px; width: 1080px; height: 1px; background: var(--ink-faint); }
 /* Brand mark: the account name, set large, bold and in full ink so it reads at thumbnail size */
 .footer {
-  position: absolute; left: 84px; top: {{ H - 42 }}px; height: 24px; white-space: nowrap;
+  position: absolute; left: 84px; top: {{ H - 42 if H <= 1350 else H - 400 }}px; height: 24px; white-space: nowrap;
   font-family: "JetBrains Mono", monospace; font-weight: 800; font-size: 22px; line-height: 24px;
   letter-spacing: 0.02em; color: var(--ink);
 }
@@ -133,10 +133,24 @@ html, body { margin: 0; padding: 0; background: var(--paper); }
 .stack .figure + .body { margin-top: 48px; }
 .cover .h { font-size: 164px; }
 /* Reel cover (9:16 only): a bold hook at the top, with the sketch below it */
-.stack.cover-reel { justify-content: flex-start; top: 230px; bottom: auto; }
+.stack.cover-reel { justify-content: flex-start; top: 300px; bottom: auto; }
+/* Reel safe zones: Instagram covers the top ~260 px and the bottom ~380 px with its own controls. */
+.caption-reel .cw { display: inline-block; opacity: 0; }
+.caption-reel { position: absolute; left: 84px; right: 84px; top: {{ H - 520 }}px; text-align: center;
+  font-family: "Manrope", sans-serif; font-weight: 600; font-size: 40px; line-height: 1.3; color: var(--ink); }
+.jolt { position: absolute; left: 0; top: {{ (H * 0.42) | int }}px; height: 6px; width: 0; background: var(--accent); }
+.endcard { position: absolute; left: 84px; right: 84px; top: 0; bottom: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; opacity: 0; text-align: center; }
+.endcard .eh { font-family: "Caveat", cursive; font-size: 150px; font-weight: 700; color: var(--ink); line-height: 1; }
+.endcard .eh .accent { color: var(--accent); font-style: normal; }
+.endcard .ea { font-family: "JetBrains Mono", monospace; font-size: 34px; letter-spacing: 0.04em; color: var(--ink-body); margin-top: 36px; }
 .cover-reel .h { font-size: 220px; font-weight: 700; line-height: 0.92; }
 .sketch-cover { position: absolute; left: 0; top: 0; width: 1080px; height: 1920px; pointer-events: none; }
 img.sketch-cover { filter: url(#pencil); }
+/* A per-post cover drawing lives in a fixed band (900-1340 px). The box clips anything outside it,
+   so it can never reach the burned-in caption below it. The SVG must use viewBox 0 0 1080 440. */
+.sketch-box { position: absolute; left: 0; top: 900px; width: 1080px; height: 440px; overflow: hidden; }
+.sketch-box img { display: block; width: 100%; height: 100%; object-fit: contain; filter: url(#pencil); }
 /* Reel keyword stage: a row of keywords across the stage. --ny is the height of the nodes; each picture sits on it. */
 .kw-stage { position: absolute; left: 0; top: 1330px; width: 1080px; height: 440px; pointer-events: none; }
 .kw-stage.cover { top: 1215px; }
@@ -269,7 +283,7 @@ img.sketch-cover { filter: url(#pencil); }
   {# ---------- content ---------- #}
   {% if slide.role == 'cover' %}
   <div class="stack{% if H > 1350 %} cover-reel{% endif %}">
-    <div class="h" data-fit="headline" data-id="headline" data-max="{{ 220 if H > 1350 else 164 }}" data-min="{{ 170 if H > 1350 else 140 }}" data-lines="5">{{ slide.headline_html }}</div>
+    <div class="h" data-fit="headline" data-id="headline" data-max="{{ 220 if H > 1350 else 164 }}" data-min="{{ 170 if H > 1350 else 140 }}" data-lines="{{ 3 if H > 1350 else 5 }}">{{ slide.headline_html }}</div>
     {% if slide.subtitle_html %}<div class="body" data-fit="body" data-id="subtitle" data-lines="2">
       {% for line in slide.subtitle_html %}<p>{{ line }}</p>{% endfor %}
     </div>{% endif %}
@@ -292,10 +306,11 @@ img.sketch-cover { filter: url(#pencil); }
   </div>
   {% endif %}
 
-  {# ---------- Reel cover sketch: a curious man peeking round a wall, pencil line art ---------- #}
-  {% if H > 1350 and slide.role == 'cover' %}
-  {% if slide.sketch_uri %}<img class="sketch-cover" src="{{ slide.sketch_uri }}" alt="">{% else %}
+  {# ---------- Reel cover drawing: retired. Covers carry text on their background only, so this never renders. ---------- #}
+  {% if false %}
+  {% if slide.sketch_uri %}<div class="sketch-box"><img src="{{ slide.sketch_uri }}" alt=""></div>{% else %}
   <svg class="sketch-cover" viewBox="0 0 1080 1920" aria-hidden="true">
+    <g transform="translate(0,-220)">
     <g class="ink" filter="url(#pencil)">
       <!-- wall edge and floor -->
       <path d="M560 1000 V1740"/>
@@ -319,6 +334,7 @@ img.sketch-cover { filter: url(#pencil); }
     <!-- the question mark, in the accent colour -->
     <path class="acc" d="M842 1000 Q842 950 892 950 Q938 950 938 992 Q938 1024 900 1036 L900 1072" style="fill: none; stroke: var(--accent); stroke-width: 13; stroke-linecap: round"/>
     <circle cx="900" cy="1100" r="10" style="fill: var(--accent)"/>
+    </g>
   </svg>
   {% endif %}
   {% endif %}
@@ -337,6 +353,21 @@ img.sketch-cover { filter: url(#pencil); }
     </div>
     {% endfor %}
   </div>
+  {% endif %}
+
+  {# ---------- Reel only: burned-in caption, a pattern-interrupt bar, and the follow end card ---------- #}
+  {% if H > 1350 %}
+  <div class="caption-reel" data-id="caption"></div>
+  <div class="jolt" data-id="jolt"></div>
+  {% if slide.role == 'closing' %}
+  <div class="endcard" data-id="endcard">
+    <div class="eh">Follow <span class="accent">vivektraces</span></div>
+    <svg width="120" height="160" viewBox="0 0 120 160" aria-hidden="true" style="margin-top: 30px">
+      <path d="M60 4 V140 M20 104 L60 146 L100 104" fill="none" stroke="#E8622C" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="ea">for the next one</div>
+  </div>
+  {% endif %}
   {% endif %}
 
   {# ---------- furniture (identical on every slide) ---------- #}
@@ -404,7 +435,7 @@ window.__fit = function () {
   // Nothing may leave the margins or cross the footer hairline.
   slide.querySelectorAll('[data-fit]').forEach(el => {
     const b = r(el);
-    if (b.left < 83 || b.right > 997 || b.top < 95 || b.bottom > {{ H - 56 }})
+    if (b.left < 83 || b.right > 997 || b.top < {{ 260 if H > 1350 else 95 }} || b.bottom > {{ H - 380 if H > 1350 else H - 56 }})
       out.problems.push(`${el.dataset.id}: outside margins (${Math.round(b.left)},${Math.round(b.top)} to ${Math.round(b.right)},${Math.round(b.bottom)})`);
   });
   return out;
@@ -423,13 +454,28 @@ window.__rects = function () {
 // Reel motion, used only by the Reel renderer. Called once per frame with the time t (seconds) and the
 // sentence start times (beats). The figure floats gently all the time and gives a short lift on every
 // beat, so the picture keeps changing while the voice explains. The background motif drifts slowly.
-window.__frame = function (t, beats, kwStarts) {
+window.__frame = function (t, beats, kwStarts, endAt, caps, ends) {
+  // Components load one after another: the headline rises in first, then the picture grows in at the first
+  // beat. Each keyword and each caption word follows the narration, so something is always arriving.
+  const hd = document.querySelector('.stack .h');
+  if (hd && document.querySelector('.slide').dataset.role !== 'cover') {
+    const k = Math.min(1, Math.max(0, t / 0.6));
+    hd.style.opacity = k;
+    hd.style.transform = `translateY(${(1 - k) * 24}px)`;
+  }
+  const figEl = document.querySelector('[data-id="figure"] img');
+  if (figEl) {
+    const first = beats && beats.length ? beats[0] : 0;
+    const k = Math.min(1, Math.max(0, (t - first) / 0.7));
+    figEl.style.opacity = k;
+    figEl.dataset.enter = (0.9 + 0.1 * k).toFixed(3);
+  }
   const fig = document.querySelector('[data-id="figure"] img');
   if (fig) {
     let pulse = 0;
     for (const b of beats) if (t >= b) pulse += Math.exp(-4 * (t - b));
     const lift = Math.sin(t * 2 * Math.PI / 3.2) * 8;
-    fig.style.transform = `translateY(${lift}px) scale(${1 + 0.04 * Math.min(pulse, 2)})`;
+    fig.style.transform = `translateY(${lift}px) scale(${Number(fig.dataset.enter || 1) * (1 + 0.04 * Math.min(pulse, 2))})`;
   }
   // Connected keywords: each keyword and its dot appear 1.5 s before it is spoken and stay on screen.
   // The line from the previous keyword is drawn in as the next one appears, so the links build up.
@@ -449,6 +495,58 @@ window.__frame = function (t, beats, kwStarts) {
       link.setAttribute('stroke-dashoffset', (L * (1 - p)).toFixed(2));
     }
   });
+  // Burned-in caption: the narration sentence being spoken now, in the safe zone above the bottom controls.
+  const cap = document.querySelector('[data-id="caption"]');
+  // Each word appears as it is spoken: within a sentence, word k shows once the voice reaches its share of the sentence.
+  if (cap && caps && caps.length && ends) {
+    let idx = -1;
+    caps.forEach((c, i) => { if (beats[i] !== undefined && t >= beats[i]) idx = i; });
+    if (idx < 0 || t > ends[idx] + 0.8) {
+      if (cap.dataset.sent !== '') { cap.dataset.sent = ''; cap.textContent = ''; }
+    } else {
+      if (cap.dataset.sent !== String(idx)) {
+        cap.dataset.sent = String(idx);
+        cap.textContent = '';
+        caps[idx].split(' ').forEach((w, k, all) => {
+          const s = document.createElement('span');
+          s.className = 'cw'; s.textContent = w;
+          cap.appendChild(s);
+          if (k < all.length - 1) cap.appendChild(document.createTextNode(' '));
+        });
+      }
+      const words = cap.querySelectorAll('.cw');
+      const start = beats[idx], end = Math.max(ends[idx], start + 0.05);
+      const p = Math.min(1, Math.max(0, (t - start) / (end - start)));
+      words.forEach((el, k) => {
+        const at = k / words.length;
+        el.style.opacity = p >= at ? Math.min(1, (p - at) * words.length * 3) : 0;
+      });
+    }
+  }
+  // Pattern interrupt: a short accent bar sweeps across the slide every 12 seconds.
+  const jolt = document.querySelector('[data-id="jolt"]');
+  if (jolt && document.querySelector('.slide').dataset.role !== 'cover') {
+    let w = 0;
+    for (const j of [12, 24]) if (t >= j && t < j + 0.45) w = 1080 * (t - j) / 0.45;
+    jolt.style.width = w.toFixed(1) + 'px';
+  }
+  // Hand-drawn cover: the sketch's strokes draw on over the first two seconds, one after another.
+  document.querySelectorAll('.sketch-cover .ink > *').forEach((el, i) => {
+    if (typeof el.getTotalLength !== 'function') return;
+    if (!el.dataset.len) el.dataset.len = el.getTotalLength().toFixed(2);
+    const L = parseFloat(el.dataset.len);
+    const p = Math.min(1, Math.max(0, (t - i * 0.08) / 0.7));
+    el.setAttribute('stroke-dasharray', L + ' ' + L);
+    el.setAttribute('stroke-dashoffset', (L * (1 - p)).toFixed(2));
+  });
+  // Follow end card: on the closing slide, the follow prompt takes over the last seconds.
+  const ec = document.querySelector('[data-id="endcard"]');
+  if (ec) {
+    const on = endAt != null && t >= endAt;
+    ec.style.opacity = on ? Math.min(1, (t - endAt) / 0.4) : 0;
+    const stack = document.querySelector('.stack');
+    if (stack) stack.style.opacity = on ? 0 : 1;
+  }
   const motif = document.querySelector('.motif');
   if (motif) {
     const dx = Math.sin(t * 2 * Math.PI / 9) * 1.5;

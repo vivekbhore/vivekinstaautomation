@@ -3,3 +3,4 @@ output/*/html/
 .env.*
 publish.log
 __pycache__/
+reel-progress/
