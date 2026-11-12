@@ -1,0 +1,78 @@
+{
+  "topic": "Airport Luggage",
+  "slug": "airport-luggage",
+  "slides": [
+    {
+      "role": "cover",
+      "headline": "Your bag never sees the plane's name. So how does it arrive?",
+      "subtitle": [
+        "How airport luggage finds the right flight."
+      ],
+      "narration": "Let's understand how airport luggage works in 1 minute. You hand over your bag at the check-in desk, and a few hours later it is waiting for you at your destination. So how does it end up on the right plane? Let's follow it."
+    },
+    {
+      "role": "body",
+      "heading": "Every bag gets a tag",
+      "body": [
+        "A barcode on the tag holds a unique number for your bag.",
+        "The airline links that number to your name and your flight."
+      ],
+      "photo": "luggage tag barcode",
+      "keywords": [
+        {
+          "word": "barcode",
+          "photo": "luggage tag",
+          "figure": "assets/photo-luggage-tag-collection.jpg"
+        }
+      ],
+      "narration": "When you check in, your bag gets a paper tag. The tag carries a barcode, and the barcode is a unique number for that one bag. The airline links this number to your name and your flight. From now on, the bag is tracked by its number, not by its colour or its shape.",
+      "figure": "assets/photo-us-airways-luggage-tag-rush-2015.jpg"
+    },
+    {
+      "role": "body",
+      "heading": "Machines read and sort it",
+      "body": [
+        "Scanners along the way read the barcode.",
+        "A computer picks the belt that leads to your flight."
+      ],
+      "video": "baggage handling system",
+      "narration": "Along the way, your bag passes under scanners. Each scanner reads the barcode and sends the bag number to a computer. The computer decides which belt the bag should take. Then sorting arms push the bag into the right lane, without anyone lifting it by hand.",
+      "figure": "assets/video-baggage-handling-system-in-operation.jpg",
+      "video_clip": "assets/video-baggage-handling-system-in-operation.mp4"
+    },
+    {
+      "role": "body",
+      "heading": "Each flight gets its own lane",
+      "body": [
+        "Bags for the same flight are grouped together.",
+        "Often they are loaded into metal containers called unit load devices."
+      ],
+      "figure": "assets/fig-lanes.svg",
+      "narration": "Bags for the same flight are gathered into one lane. Wide planes often use metal containers, called unit load devices, that hold many bags at once. Smaller planes take bags loaded loose on carts. Either way, the bags for one flight stay together until the plane is ready."
+    },
+    {
+      "role": "body",
+      "heading": "Carts take the bags to the plane",
+      "body": [
+        "A small tractor pulls the carts across the airport apron.",
+        "Staff scan each bag again as it goes into the hold."
+      ],
+      "photo": "airport aircraft apron",
+      "keywords": [
+        {
+          "word": "carts",
+          "photo": "baggage cart airport",
+          "figure": "assets/photo-baggage-cart-in-funafuti-airport.jpg"
+        }
+      ],
+      "narration": "A small tractor pulls the carts across the apron to the aircraft. Staff load each bag into the hold and scan it again. That second scan tells the airline that the bag is on the right plane, before the doors close.",
+      "figure": "assets/photo-apron-or-ramp-internacional-airport-el-dorado-bogot-colombia.jpg"
+    },
+    {
+      "role": "closing",
+      "headline": "Your bag found its flight.",
+      "cta": "Follow vivektraces for the next one.",
+      "narration": "So that is how your bag finds the right plane: a tag, a scan, a sorted lane, and a cart. Follow vivektraces for the next one."
+    }
+  ]
+}
