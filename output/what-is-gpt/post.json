@@ -1,5 +1,6 @@
 {
-  "status": "Approved",
+  "status": "Failed",
   "scheduled": "2026-11-09",
-  "format": "reel"
+  "format": "reel",
+  "error": "Graph API POST 17841434808198432/media failed (400): {\"error\":{\"message\":\"Error validating access token: Session has expired on Sunday, 08-Nov-26 02:00:00 PST. The current time is Wednesday, 11-Nov-26 21:30:05 PST.\",\"code\":190,\"type\":\"OAuthException\",\"error_subcode\":463,\"fbtrace_id\":\"AI8Hp4vbqWdZBj0TFP1YmIy\"}}"
 }
